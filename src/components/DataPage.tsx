@@ -18,7 +18,7 @@ export default function DataPage({ data, commit, notify, confirm, loadDemo, read
     const file = event.target.files?.[0];
     event.target.value = '';
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) return notify('حجم الملف أكبر من 5 ميجابايت. اختر نسخة احتياطية أصغر.', 'error');
+    if (file.size > 25 * 1024 * 1024) return notify('حجم الملف أكبر من 25 ميجابايت. اختر نسخة احتياطية أصغر.', 'error');
     try {
       const imported = parseBackup(await file.text());
       confirm('استيراد النسخة الاحتياطية؟', `تحتوي النسخة على ${imported.teachers.length} معلم و${imported.classes.length} فصل باسم "${imported.schoolName}". ستستبدل بياناتك الحالية، وستحتاج إلى إعادة توليد الجدول. ننصح بتصدير نسخة من بياناتك أولاً.`, () => { commit(imported); notify('تم استيراد البيانات بنجاح. يمكنك الآن توليد الجدول.'); });

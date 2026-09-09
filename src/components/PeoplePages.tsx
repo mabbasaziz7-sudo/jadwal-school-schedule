@@ -28,6 +28,7 @@ export function TeachersPage({ data, commit, notify, goTo, confirm, onViewTeache
       teacherExceptions: data.teacherExceptions.filter(item => item.teacherId !== teacher.id),
       limits: data.limits.filter(item => item.teacherId !== teacher.id),
       bookings: data.bookings.filter(item => item.teacherId !== teacher.id),
+      attachments: data.attachments.filter(item => !(item.targetType === 'teacher' && item.targetId === teacher.id)),
     });
     if (form.id === teacher.id) setForm(blank());
     notify('تم حذف المعلم والبيانات المرتبطة به.');
@@ -99,6 +100,7 @@ export function ClassesPage({ data, commit, notify, goTo, confirm }: WorkspacePr
       bookings: data.bookings.filter(item => item.classId !== schoolClass.id),
       sections: data.sections.map(section => ({ ...section, classIds: section.classIds.filter(id => id !== schoolClass.id) })),
       wings: data.wings.map(wing => ({ ...wing, classIds: wing.classIds.filter(id => id !== schoolClass.id) })),
+      attachments: data.attachments.filter(item => !(item.targetType === 'class' && item.targetId === schoolClass.id)),
     });
     if (form.id === schoolClass.id) reset();
     notify('تم حذف الفصل والبيانات المرتبطة به.');

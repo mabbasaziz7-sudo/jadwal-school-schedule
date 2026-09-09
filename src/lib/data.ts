@@ -92,6 +92,17 @@ export interface Wing {
   teacherId: string;
 }
 
+/** A file or image the admin attaches to one teacher's or one class's schedule (e.g. a scanned/signed copy). Stored as a data URL — this app has no server. */
+export interface Attachment {
+  id: string;
+  targetType: 'teacher' | 'class';
+  targetId: string;
+  fileName: string;
+  mimeType: string;
+  dataUrl: string;
+  uploadedAt: string;
+}
+
 export type PermissionResource = 'dashboard' | 'days' | 'teachers' | 'classes' | 'requirements' | 'exceptions' | 'limits' | 'bookings' | 'distribute' | 'schedule' | 'data' | 'settings';
 export type PermissionLevel = 'none' | 'view' | 'edit';
 export type PermissionMap = Record<PermissionResource, PermissionLevel>;
@@ -155,7 +166,12 @@ export interface AppData {
   grades: Grade[];
   wings: Wing[];
   staffAccounts: StaffAccount[];
+  attachments: Attachment[];
 }
+
+/** Files this size or smaller (bytes, before base64 encoding) are accepted for a schedule attachment. */
+export const MAX_ATTACHMENT_BYTES = 1.5 * 1024 * 1024;
+export const ALLOWED_ATTACHMENT_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'application/pdf'] as const;
 
 export type UserRole = 'admin' | 'teacher' | 'supervisor' | 'staff';
 export interface UserSession {
@@ -264,6 +280,7 @@ export function createDefaultData(): AppData {
     grades: [],
     wings: [],
     staffAccounts: [],
+    attachments: [],
   };
 }
 
@@ -386,6 +403,14 @@ export function parseBackup(raw: string): AppData {
       })
       .map(item => ({ id: item.id as string, name: item.name as string, title: item.title as string, username: item.username as string, password: item.password as string, permissions: item.permissions as PermissionMap }))
     : [];
+  const rawAttachments = rawValue.attachments;
+  const attachments = Array.isArray(rawAttachments) && rawAttachments.length <= 300 && rawAttachments.every(isRecord)
+    ? (rawAttachments as Record<string, unknown>[]).filter(item =>
+        isText(item.id) && item.id && (item.targetType === 'teacher' || item.targetType === 'class') &&
+        isText(item.targetId) && (item.targetType === 'teacher' ? teacherIds.has(item.targetId) : classIds.has(item.targetId)) &&
+        isText(item.fileName, 150) && isText(item.mimeType, 60) && isText(item.dataUrl, 2_200_000) && isText(item.uploadedAt, 40))
+      .map(item => ({ id: item.id as string, targetType: item.targetType as 'teacher' | 'class', targetId: item.targetId as string, fileName: item.fileName as string, mimeType: item.mimeType as string, dataUrl: item.dataUrl as string, uploadedAt: item.uploadedAt as string }))
+    : [];
   const optionalText = (field: string, max = 60) => isText(rawValue[field], max) ? (rawValue[field] as string) : '';
   // Rebuild derived schedules rather than trusting imported, potentially stale assignments.
   return {
@@ -413,6 +438,7 @@ export function parseBackup(raw: string): AppData {
     grades,
     wings,
     staffAccounts,
+    attachments,
   };
 }
 

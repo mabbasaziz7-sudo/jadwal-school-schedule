@@ -17,6 +17,7 @@ import { Button, Modal } from './ui';
 import NotificationCenter from './NotificationCenter';
 import InstallAppButton from './InstallAppButton';
 import { OfficialPrintHeader, OfficialPrintFooter } from './OfficialPrintHeader';
+import AttachmentPanel from './AttachmentPanel';
 
 interface SupervisorPortalProps {
   data: AppData;
@@ -224,6 +225,8 @@ export default function SupervisorPortal({
               </select>
             )}
           </div>
+
+          {selectedClass && <AttachmentPanel data={data} targetType="class" targetId={selectedClass.id} editable={false} />}
 
           {!data.schedule || !selectedClass ? (
             <div className="schedule-not-generated">

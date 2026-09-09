@@ -5,6 +5,7 @@ import { csvCell, downloadFile, type Lesson } from '../lib/data';
 import { moveLesson, removeManualLesson, startBlankSchedule, upsertManualLesson } from '../lib/scheduler';
 import { Button, CheckboxList, EmptyState, Field, InlineNotice, Modal, Panel, type WorkspaceProps } from './ui';
 import { OfficialPrintHeader, OfficialPrintFooter } from './OfficialPrintHeader';
+import AttachmentPanel from './AttachmentPanel';
 
 interface ScheduleProps extends WorkspaceProps {
   onGenerate: () => void;
@@ -154,6 +155,7 @@ export default function SchedulePage({ data, commit, notify, goTo, loadDemo, onG
       <section className="timetable-panel">
         <OfficialPrintHeader data={data} subtitle={`جدول ${mode === 'class' ? 'الفصل' : 'المعلم'}: ${selected?.name ?? ''}`} />
         <div className="timetable-heading"><div><span className="timetable-eyebrow">{data.schoolName}</span><h2>الجدول الأسبوعي: {selected?.name}</h2></div><span className="academic-year">العام الدراسي <bdi className="latin">{data.year}</bdi></span></div>
+        {selected && <AttachmentPanel data={data} targetType={mode} targetId={selected.id} editable={!readOnly} commit={commit} notify={notify} />}
         <div className="table-scroll"><table className="timetable"><thead><tr><th>الحصة</th>{days.map(day => <th key={day.id}>{day.name}<span>{day.periods} حصص</span></th>)}</tr></thead><tbody>{Array.from({ length: maxPeriods }, (_, index) => index + 1).map(period => <tr key={period}><th><span className="period-number">{String(period).padStart(2, '0')}</span><span className="period-label">الحصة {period}</span></th>{days.map(day => {
           const lesson = visibleLessons.find(item => item.dayId === day.id && item.period === period);
           const unavailable = period > day.periods || (mode === 'class' ? data.classExceptions.some(item => item.classId === selected?.id && item.dayId === day.id && period >= item.fromPeriod) : !data.teachers.find(item => item.id === selected?.id)?.days.includes(day.id) || data.teacherExceptions.some(item => item.teacherId === selected?.id && item.dayId === day.id && item.period === period));

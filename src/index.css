@@ -917,6 +917,20 @@ select.compact-select { width: auto; max-width: 230px; font-size: 11px; min-heig
 .panel-header-row h2 { margin: 0; font-size: 17px; font-weight: 600; color: #2a4739; display: flex; align-items: center; gap: 8px; }
 .panel-header-row p { margin: 4px 0 0; font-size: 12px; color: #839488; }
 .wing-panel-selects { display: flex; gap: 10px; flex-wrap: wrap; }
+
+/* Attachments: an admin-uploaded file/image shown alongside a teacher's or class's schedule. */
+.attachment-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 14px 26px; border-bottom: 1px solid #eaf0eb; background: #fbfdf9; }
+.attachment-bar-label { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: #7d8c76; font-weight: 500; flex-shrink: 0; }
+.attachment-chip-list { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.attachment-chip { position: relative; display: inline-flex; align-items: center; gap: 7px; padding: 5px 10px 5px 6px; border-radius: 20px; background: #fff; border: 1px solid #dfe8d7; color: #4a5d44; font-size: 11px; max-width: 180px; }
+.attachment-chip:hover { border-color: #b9d3a1; background: #f5faf1; }
+.attachment-chip img { width: 22px; height: 22px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+.attachment-chip > svg { flex-shrink: 0; color: #8aa078; }
+.attachment-chip span:not(.attachment-remove) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.attachment-remove { display: flex; align-items: center; justify-content: center; width: 17px; height: 17px; border-radius: 50%; background: #f1f3ee; color: #7d8c76; flex-shrink: 0; }
+.attachment-remove:hover { background: #f3d9d3; color: #a2493c; }
+.attachment-upload-btn { font-size: 11px; padding: 6px 10px; gap: 6px; }
+.attachment-preview-image { display: block; max-width: 100%; max-height: 60vh; margin: 0 auto; border-radius: 8px; border: 1px solid #e5ebe6; }
 .legend-pills { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 .legend-item { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: #6a7c71; }
 .legend-box { width: 14px; height: 14px; border-radius: 4px; }
@@ -1259,7 +1273,7 @@ select.compact-select { width: auto; max-width: 230px; font-size: 11px; min-heig
   @page { size: A4 landscape; margin: 10mm; }
   :root, body { background: white !important; }
   body { min-width: 0; }
-  .sidebar, .sidebar-backdrop, .topbar, .page-heading, .setup-progress, .workspace-footer, .schedule-controls, .schedule-result, .schedule-warnings, .generation-status, .timetable-footer, .toast-container, .modal-backdrop, .teacher-topbar, .teacher-topbar-actions, .teacher-stats-grid, .teacher-details-grid, .print-hint, .dashboard-hero, .dash-stats-grid, .setup-stepper, .quick-actions-grid, .dash-export-bar, .distribute-guide, .distribute-controls, .distribute-footer, .board-legend, .warning-list, .notif-panel { display: none !important; }
+  .sidebar, .sidebar-backdrop, .topbar, .page-heading, .setup-progress, .workspace-footer, .schedule-controls, .schedule-result, .schedule-warnings, .generation-status, .timetable-footer, .toast-container, .modal-backdrop, .teacher-topbar, .teacher-topbar-actions, .teacher-stats-grid, .teacher-details-grid, .print-hint, .dashboard-hero, .dash-stats-grid, .setup-stepper, .quick-actions-grid, .dash-export-bar, .distribute-guide, .distribute-controls, .distribute-footer, .board-legend, .warning-list, .notif-panel, .attachment-bar { display: none !important; }
   .main-shell, .teacher-workspace { margin: 0 !important; padding: 0 !important; max-width: 100% !important; }
   .page-content { opacity: 1 !important; transform: none !important; }
   .schedule-page { gap: 0; }
