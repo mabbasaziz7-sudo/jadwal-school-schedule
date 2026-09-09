@@ -1,4 +1,4 @@
-import Anthropic from '@anthropic-ai/sdk';
+import { GoogleGenAI, Type } from '@google/genai';
 import type { AppData } from './data';
 import type { RawImportRow } from './scheduleImport';
 
@@ -15,58 +15,72 @@ async function fileToBase64(file: File): Promise<string> {
   return commaIndex >= 0 ? dataUrl.slice(commaIndex + 1) : dataUrl;
 }
 
+const ROW_SCHEMA = {
+  type: Type.ARRAY,
+  items: {
+    type: Type.OBJECT,
+    properties: {
+      teacher: { type: Type.STRING, description: 'اسم المعلم كما يظهر في الخانة.' },
+      className: { type: Type.STRING, description: 'اسم الفصل أو الصف الدراسي.' },
+      day: { type: Type.STRING, description: 'اسم اليوم.' },
+      period: { type: Type.STRING, description: 'رقم الحصة.' },
+      subject: { type: Type.STRING, description: 'اسم المادة، إن وجدت.' },
+    },
+    required: ['teacher', 'className', 'day', 'period'],
+  },
+};
+
 /**
- * Sends an image or PDF of a schedule to Claude (using the school's own API key, entered in Settings)
- * and asks it to read the table back as structured rows. This is the one place in the app that leaves
- * the device — the admin opts into it explicitly and provides their own key.
+ * Sends an image or PDF of a schedule to Google Gemini (using the school's own API key, entered in
+ * Settings) and asks it to read the table back as structured rows. This is the one place in the app
+ * that leaves the device — the admin opts into it explicitly and provides their own key.
  */
 export async function extractScheduleFromFile(apiKey: string, file: File, data: AppData): Promise<RawImportRow[]> {
   if (!apiKey.trim()) throw new Error('أضف مفتاح API الخاص بالذكاء الاصطناعي من الإعدادات والصلاحيات أولاً.');
   const isPdf = file.type === 'application/pdf';
   if (!isPdf && !SUPPORTED_IMAGE_TYPES.has(file.type)) throw new Error('نوع الملف غير مدعوم لاستخراج الجدول بالذكاء الاصطناعي. استخدم صورة (PNG, JPG, WEBP, GIF) أو ملف PDF.');
 
-  const client = new Anthropic({ apiKey: apiKey.trim(), dangerouslyAllowBrowser: true });
+  const ai = new GoogleGenAI({ apiKey: apiKey.trim() });
   const base64 = await fileToBase64(file);
+  const mimeType = isPdf ? 'application/pdf' : file.type;
 
   const teacherNames = data.teachers.map(t => t.name).join('، ') || 'لا يوجد معلمون مسجلون بعد';
   const classNames = data.classes.map(c => c.name).join('، ') || 'لا توجد فصول مسجلة بعد';
   const dayNames = data.days.filter(d => d.enabled).map(d => d.name).join('، ') || 'غير محددة';
 
   const instructions = `أنت تستخرج جدولاً دراسياً أسبوعياً من صورة أو مستند مرفق. اقرأ الجدول بعناية واستخرج كل حصة تظهر فيه (كل خانة تحتوي معلماً أو مادة).
-أعد النتيجة بصيغة JSON فقط (مصفوفة كائنات)، دون أي نص إضافي أو شرح أو تنسيق Markdown، بهذا الشكل بالضبط:
-[{"teacher": "اسم المعلم", "className": "اسم الفصل", "day": "اسم اليوم", "period": 1, "subject": "اسم المادة"}]
 
 معلومات عن هذه المدرسة، لمساعدتك على مطابقة الأسماء المكتوبة بخط اليد أو المختصرة مع الأسماء الصحيحة المسجلة:
 - المعلمون المسجلون: ${teacherNames}
 - الفصول المسجلة: ${classNames}
 - أيام الدوام المفعّلة: ${dayNames}
 
-إن استطعت مطابقة اسم مستخرج مع أحد الأسماء المسجلة أعلاه ولو بتقارب كبير، استخدم الاسم المسجل بالضبط. إن لم تستطع قراءة خانة بوضوح فاستخدم أفضل تخمين متاح بدلاً من تجاهل الحصة كلياً. أعد فقط مصفوفة JSON دون أي نص قبلها أو بعدها.`;
+إن استطعت مطابقة اسم مستخرج مع أحد الأسماء المسجلة أعلاه ولو بتقارب كبير، استخدم الاسم المسجل بالضبط. إن لم تستطع قراءة خانة بوضوح فاستخدم أفضل تخمين متاح بدلاً من تجاهل الحصة كلياً.`;
 
-  const content: Anthropic.MessageParam['content'] = isPdf
-    ? [
-        { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } },
-        { type: 'text', text: instructions },
-      ]
-    : [
-        { type: 'image', source: { type: 'base64', media_type: file.type as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp', data: base64 } },
-        { type: 'text', text: instructions },
-      ];
+  let response;
+  try {
+    response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: [
+        { inlineData: { data: base64, mimeType } },
+        instructions,
+      ],
+      config: {
+        responseMimeType: 'application/json',
+        responseJsonSchema: ROW_SCHEMA,
+      },
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`تعذّر الاتصال بخدمة Gemini: ${message}`);
+  }
 
-  const response = await client.messages.create({
-    model: 'claude-opus-5',
-    max_tokens: 8000,
-    thinking: { type: 'adaptive' },
-    messages: [{ role: 'user', content }],
-  });
-
-  const textBlock = response.content.find((block): block is Anthropic.TextBlock => block.type === 'text');
-  if (!textBlock) throw new Error('لم يُرجع النموذج أي نص. حاول مجدداً.');
-  const jsonText = textBlock.text.trim().replace(/^```(json)?/i, '').replace(/```$/, '').trim();
+  const text = response.text?.trim();
+  if (!text) throw new Error('لم يُرجع النموذج أي نص. حاول مجدداً.');
 
   let parsed: unknown;
   try {
-    parsed = JSON.parse(jsonText);
+    parsed = JSON.parse(text);
   } catch {
     throw new Error('تعذّر تفسير استجابة الذكاء الاصطناعي كجدول. حاول برفع صورة أوضح.');
   }

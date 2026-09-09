@@ -91,7 +91,7 @@ export default function ImportScheduleModal({ open, onClose, data, commit, notif
                   </InlineNotice>
                 ) : (
                   <>
-                    <InlineNotice kind="info">سيتم إرسال هذا الملف إلى خدمة Anthropic الخارجية لاستخراج الجدول منه. تأكد أن الملف لا يحتوي بيانات لا ترغب بمشاركتها خارجياً.</InlineNotice>
+                    <InlineNotice kind="info">سيتم إرسال هذا الملف إلى خدمة Google Gemini الخارجية لاستخراج الجدول منه. تأكد أن الملف لا يحتوي بيانات لا ترغب بمشاركتها خارجياً.</InlineNotice>
                     <div className="import-actions-row">
                       <input type="file" accept="image/png,image/jpeg,image/webp,image/gif,application/pdf" onChange={handleAiImport} className="visually-hidden" id="ai-import-input" disabled={busy} />
                       <Button icon={busy ? LoaderCircle : Sparkles} onClick={() => document.getElementById('ai-import-input')?.click()} loading={busy}>

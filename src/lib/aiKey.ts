@@ -1,7 +1,7 @@
 // The AI API key powers image/PDF-to-schedule conversion. It is stored in its own localStorage
 // key — deliberately NOT part of AppData — so it never gets swept into an exported backup file
-// (which schools may share or store insecurely) and never gets sent anywhere except Anthropic's API.
-const AI_KEY_STORAGE = 'jadwal-ai-key-v1';
+// (which schools may share or store insecurely) and never gets sent anywhere except Google's Gemini API.
+const AI_KEY_STORAGE = 'jadwal-gemini-key-v1';
 
 export function getAiApiKey(): string {
   try {

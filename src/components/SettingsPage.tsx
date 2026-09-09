@@ -237,11 +237,11 @@ export default function SettingsPage({ data, commit, notify, confirm, readOnly =
     <Panel title="مفتاح الذكاء الاصطناعي" description="يُستخدم فقط عند تحويل صورة أو ملف PDF إلى جدول من صفحة الجدول المدرسي." icon={Sparkles}>
       <form onSubmit={saveAiKey} className="panel-form">
         <div className="form-grid">
-          <Field label="مفتاح Anthropic API" optional hint="يبقى محفوظاً على هذا الجهاز فقط، ولا يُضمَّن في النسخ الاحتياطية المُصدَّرة.">
-            <input maxLength={200} type="text" placeholder="sk-ant-..." value={aiKey} onChange={event => setAiKeyInput(event.target.value)} />
+          <Field label="مفتاح Google Gemini API" optional hint="يُنشأ من aistudio.google.com/apikey، ويبقى محفوظاً على هذا الجهاز فقط، ولا يُضمَّن في النسخ الاحتياطية المُصدَّرة.">
+            <input maxLength={200} type="text" placeholder="AIzaSy..." value={aiKey} onChange={event => setAiKeyInput(event.target.value)} />
           </Field>
         </div>
-        <InlineNotice kind="info">عند استخدام هذه الميزة، تُرسل الصورة أو الملف المرفوع إلى خدمة Anthropic الخارجية لقراءته. لا يحدث هذا إلا عند الضغط الصريح على "تحويل إلى جدول بالذكاء الاصطناعي".</InlineNotice>
+        <InlineNotice kind="info">عند استخدام هذه الميزة، تُرسل الصورة أو الملف المرفوع إلى خدمة Google Gemini الخارجية لقراءته. لا يحدث هذا إلا عند الضغط الصريح على "تحويل إلى جدول بالذكاء الاصطناعي".</InlineNotice>
         <div className="form-actions"><Button type="submit">حفظ المفتاح</Button></div>
       </form>
     </Panel>
