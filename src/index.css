@@ -441,6 +441,17 @@ select.compact-select { width: auto; max-width: 230px; font-size: 11px; min-heig
 .notif-item.notif-success > svg { color: #4f9a71; }
 .notif-item.notif-reminder > svg { color: #b98a3a; }
 
+/* Install-app guide */
+.install-guide-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.install-guide-card { border: 1px solid #e3eade; border-radius: 10px; padding: 16px 18px; background: #fbfdf9; }
+.install-guide-card.is-detected { border-color: #a9d1b7; background: #f2faf4; box-shadow: 0 0 0 1px #a9d1b7 inset; }
+.install-guide-heading { display: flex; align-items: center; gap: 9px; margin-bottom: 11px; flex-wrap: wrap; }
+.install-guide-icon { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; background: #eaf4ee; color: #3c7960; flex-shrink: 0; }
+.install-guide-heading strong { font-size: 12.5px; color: #33473a; font-weight: 600; }
+.install-guide-badge { font-size: 9px; font-weight: 600; color: #2a7a5c; background: #dff2e5; padding: 2px 8px; border-radius: 999px; }
+.install-guide-card ol { margin: 0; padding-right: 18px; display: flex; flex-direction: column; gap: 6px; }
+.install-guide-card li { font-size: 11px; color: #6f8175; line-height: 1.8; }
+
 @media (min-width: 1600px) {
   .workspace { padding-top: 40px; }
   .page-heading { margin-bottom: 33px; }
@@ -520,12 +531,15 @@ select.compact-select { width: auto; max-width: 230px; font-size: 11px; min-heig
   .workspace { padding: 23px 18px 0; }
   .topbar { padding: 0 17px; gap: 10px; }
   .breadcrumb { gap: 7px; font-size: 10.5px; }
-  .topbar-tools { gap: 10px; }
+  .topbar-tools { gap: 8px; }
   .year-caption, .topbar-divider { display: none; }
   .year-picker { gap: 5px; }
   .year-picker bdi { font-size: 9.5px; }
   .year-picker > svg:first-child { width: 14px; }
   .help-icon { height: 27px; width: 27px; }
+  .admin-status-badge span, .topbar-btn-soft span { display: none; }
+  .admin-status-badge, .topbar-btn-soft { padding: 7px; }
+  .install-guide-grid { grid-template-columns: 1fr; }
   .page-heading { margin-bottom: 25px; gap: 12px; align-items: flex-start; }
   .page-heading h1 { font-size: 24px; }
   .page-heading p { font-size: 11px; max-width: 360px; line-height: 1.95; margin-top: 5px; }
@@ -611,7 +625,8 @@ select.compact-select { width: auto; max-width: 230px; font-size: 11px; min-heig
   .topbar { padding: 0 10px; }
   .breadcrumb { gap: 5px; }
   .breadcrumb > span, .breadcrumb > svg:not(.breadcrumb-home) { display: none; }
-  .topbar-tools { gap: 12px; }
+  .topbar-tools { gap: 6px; }
+  .admin-status-badge { display: none; }
   .year-picker bdi { font-size: 9.5px; }
   .page-heading { gap: 8px; margin-bottom: 23px; }
   .page-heading h1 { font-size: 22px; }

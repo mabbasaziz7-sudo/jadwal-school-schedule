@@ -37,7 +37,5 @@ export function useInstallPrompt() {
     return choice.outcome === 'accepted';
   }, [deferred]);
 
-  const isIos = /iphone|ipad|ipod/i.test(window.navigator.userAgent);
-
-  return { canInstall: !!deferred, promptInstall, installed, isIos };
+  return { canInstall: !!deferred, promptInstall, installed };
 }
