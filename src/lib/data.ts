@@ -1,4 +1,4 @@
-export type TabId = 'dashboard' | 'days' | 'teachers' | 'classes' | 'requirements' | 'exceptions' | 'limits' | 'bookings' | 'distribute' | 'schedule' | 'data' | 'settings';
+export type TabId = 'dashboard' | 'days' | 'teachers' | 'classes' | 'subjects' | 'requirements' | 'exceptions' | 'limits' | 'bookings' | 'distribute' | 'schedule' | 'data' | 'settings';
 
 export interface SchoolDay {
   id: string;
@@ -16,10 +16,18 @@ export interface Teacher {
   maxDaily: number;
   maxConsecutive: number;
   days: string[];
+  /** Optional login password for the teacher portal. Empty means anyone can log in by picking the teacher's name, as before. */
+  password?: string;
 }
 
 /** A grade level (e.g. "العاشر"), grouping several class sections ("الفصول") under one label. */
 export interface Grade {
+  id: string;
+  name: string;
+}
+
+/** A subject taught at the school (e.g. "الرياضيات"). A simple registry used to suggest/standardize subject names elsewhere. */
+export interface Subject {
   id: string;
   name: string;
 }
@@ -103,7 +111,7 @@ export interface Attachment {
   uploadedAt: string;
 }
 
-export type PermissionResource = 'dashboard' | 'days' | 'teachers' | 'classes' | 'requirements' | 'exceptions' | 'limits' | 'bookings' | 'distribute' | 'schedule' | 'data' | 'settings';
+export type PermissionResource = 'dashboard' | 'days' | 'teachers' | 'classes' | 'subjects' | 'requirements' | 'exceptions' | 'limits' | 'bookings' | 'distribute' | 'schedule' | 'data' | 'settings';
 export type PermissionLevel = 'none' | 'view' | 'edit';
 export type PermissionMap = Record<PermissionResource, PermissionLevel>;
 
@@ -146,6 +154,7 @@ export interface AppData {
   days: SchoolDay[];
   teachers: Teacher[];
   classes: SchoolClass[];
+  subjects: Subject[];
   requirements: Requirement[];
   teacherExceptions: TeacherException[];
   classExceptions: ClassException[];
@@ -194,6 +203,7 @@ export const PERMISSION_RESOURCES: { id: PermissionResource; label: string }[] =
   { id: 'days', label: 'أيام الدوام' },
   { id: 'teachers', label: 'المعلمون' },
   { id: 'classes', label: 'الفصول الدراسية' },
+  { id: 'subjects', label: 'المواد الدراسية' },
   { id: 'requirements', label: 'نصاب المعلمين' },
   { id: 'exceptions', label: 'الاستثناءات' },
   { id: 'limits', label: 'حدود التكرار' },
@@ -215,7 +225,7 @@ export const STAFF_TITLE_PRESETS: { title: string; permissions: PermissionMap }[
   { title: 'مدير مدرسة', permissions: permissionsWithLevel('edit') },
   {
     title: 'مدير مساعد',
-    permissions: { ...permissionsWithLevel('view'), teachers: 'edit', classes: 'edit', requirements: 'edit', exceptions: 'edit', limits: 'edit', bookings: 'edit', distribute: 'edit', schedule: 'edit' },
+    permissions: { ...permissionsWithLevel('view'), teachers: 'edit', classes: 'edit', subjects: 'edit', requirements: 'edit', exceptions: 'edit', limits: 'edit', bookings: 'edit', distribute: 'edit', schedule: 'edit' },
   },
   {
     title: 'مشرف',
@@ -262,6 +272,7 @@ export function createDefaultData(): AppData {
     days: defaultDays.map(day => ({ ...day })),
     teachers: [],
     classes: [],
+    subjects: [],
     requirements: [],
     teacherExceptions: [],
     classExceptions: [],
@@ -308,6 +319,7 @@ export function makeDemoData(): AppData {
     id: `teacher-${index + 1}`, name, code: `T0${index + 1}`, minDaily: 1, maxDaily: 5, maxConsecutive: 3,
     days: data.days.filter(day => day.enabled).map(day => day.id),
   }));
+  data.subjects = subjects.map((name, index) => ({ id: `subject-${index + 1}`, name }));
   data.grades = ['الأول متوسط', 'الثاني متوسط', 'الثالث متوسط'].map((name, index) => ({ id: `grade-${index + 1}`, name }));
   data.classes = ['الأول متوسط - أ', 'الثاني متوسط - أ', 'الثالث متوسط - أ'].map((name, index) => ({ id: `class-${index + 1}`, name, code: `C0${index + 1}`, gradeId: `grade-${index + 1}` }));
   data.requirements = data.classes.flatMap(schoolClass => data.teachers.map((teacher, index) => ({
@@ -350,7 +362,8 @@ export function parseBackup(raw: string): AppData {
   const dayIds = new Set(data.days.map(day => day.id));
   const teacherIds = new Set(data.teachers.map(teacher => teacher.id));
   const classIds = new Set(data.classes.map(schoolClass => schoolClass.id));
-  if (data.teachers.some(teacher => !isText(teacher.name) || !teacher.name.trim() || !isText(teacher.code) || !isNumber(teacher.minDaily, 0, 12) || !isNumber(teacher.maxDaily, 1, 12) || teacher.minDaily > teacher.maxDaily || !isNumber(teacher.maxConsecutive, 1, 12) || !Array.isArray(teacher.days) || teacher.days.some(day => !dayIds.has(day)))) throw error;
+  if (data.teachers.some(teacher => !isText(teacher.name) || !teacher.name.trim() || !isText(teacher.code) || !isNumber(teacher.minDaily, 0, 12) || !isNumber(teacher.maxDaily, 1, 12) || teacher.minDaily > teacher.maxDaily || !isNumber(teacher.maxConsecutive, 1, 12) || !Array.isArray(teacher.days) || teacher.days.some(day => !dayIds.has(day)) || (teacher.password !== undefined && !isText(teacher.password, 100)))) throw error;
+  const teachersWithPassword = data.teachers.map(teacher => ({ ...teacher, password: isText(teacher.password, 100) ? teacher.password : '' }));
   if (data.classes.some(schoolClass => !isText(schoolClass.name) || !schoolClass.name.trim() || !isText(schoolClass.code))) throw error;
   if (data.requirements.some(item => !teacherIds.has(item.teacherId) || !classIds.has(item.classId) || !isText(item.subject) || !isNumber(item.count, 1, 84))) throw error;
   if (data.teacherExceptions.some(item => !teacherIds.has(item.teacherId) || !dayIds.has(item.dayId) || !isNumber(item.period, 1, 12))) throw error;
@@ -383,6 +396,11 @@ export function parseBackup(raw: string): AppData {
     : [];
   const gradeIds = new Set(grades.map(grade => grade.id));
   const classesWithGrade = data.classes.map(schoolClass => ({ ...schoolClass, gradeId: gradeIds.has(schoolClass.gradeId) ? schoolClass.gradeId : '' }));
+  const rawSubjects = rawValue.subjects;
+  const subjects = Array.isArray(rawSubjects) && rawSubjects.length <= 300 && rawSubjects.every(isRecord)
+    ? (rawSubjects as Record<string, unknown>[]).filter(item => isText(item.id) && item.id && isText(item.name) && item.name.toString().trim())
+      .map(item => ({ id: item.id as string, name: item.name as string }))
+    : [];
   const rawWings = rawValue.wings;
   const wings = Array.isArray(rawWings) && rawWings.length <= 100 && rawWings.every(isRecord)
     ? (rawWings as Record<string, unknown>[]).filter(item =>
@@ -418,8 +436,9 @@ export function parseBackup(raw: string): AppData {
     schoolName: data.schoolName,
     year: data.year,
     days: defaultDays.map(day => ({ ...day, enabled: data.days.find(item => item.id === day.id)!.enabled, periods: data.days.find(item => item.id === day.id)!.periods })),
-    teachers: data.teachers,
+    teachers: teachersWithPassword,
     classes: classesWithGrade,
+    subjects,
     requirements: data.requirements,
     teacherExceptions: data.teacherExceptions,
     classExceptions: data.classExceptions,

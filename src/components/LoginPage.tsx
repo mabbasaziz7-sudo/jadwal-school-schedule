@@ -34,6 +34,9 @@ export default function LoginPage({ data, onLogin, loadDemo, notify }: LoginPage
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [teacherPassword, setTeacherPassword] = useState('');
+  const [showTeacherPassword, setShowTeacherPassword] = useState(false);
+  const [teacherError, setTeacherError] = useState('');
 
   const adminPass = data.adminPassword || 'admin';
   const hasTeachers = data.teachers.length > 0;
@@ -66,8 +69,13 @@ export default function LoginPage({ data, onLogin, loadDemo, notify }: LoginPage
 
   const handleTeacherSubmit = (e: FormEvent) => {
     e.preventDefault();
+    setTeacherError('');
     if (!currentTeacher) {
       notify('الرجاء اختيار المعلم أولاً أو إضافة معلمين من لوحة الإدارة.', 'error');
+      return;
+    }
+    if (currentTeacher.password && currentTeacher.password !== teacherPassword) {
+      setTeacherError('كلمة المرور غير صحيحة.');
       return;
     }
     notify(`مرحباً بك أستاذ/ة ${currentTeacher.name}`, 'success');
@@ -177,7 +185,7 @@ export default function LoginPage({ data, onLogin, loadDemo, notify }: LoginPage
                       </span>
                       <select
                         value={currentTeacher?.id ?? ''}
-                        onChange={(e) => setSelectedTeacherId(e.target.value)}
+                        onChange={(e) => { setSelectedTeacherId(e.target.value); setTeacherPassword(''); setTeacherError(''); }}
                         className="login-select"
                         required
                       >
@@ -217,6 +225,40 @@ export default function LoginPage({ data, onLogin, loadDemo, notify }: LoginPage
                             </strong>
                           </div>
                         </div>
+                      </div>
+                    )}
+
+                    {currentTeacher?.password && (
+                      <label className="login-field">
+                        <span className="login-field-label">
+                          <Lock size={16} />
+                          كلمة المرور
+                        </span>
+                        <div className="password-input-wrap">
+                          <input
+                            type={showTeacherPassword ? 'text' : 'password'}
+                            value={teacherPassword}
+                            onChange={(e) => { setTeacherPassword(e.target.value); setTeacherError(''); }}
+                            placeholder="أدخل كلمة المرور..."
+                            className="login-input"
+                            required
+                            autoFocus
+                          />
+                          <button
+                            type="button"
+                            className="password-toggle"
+                            onClick={() => setShowTeacherPassword(!showTeacherPassword)}
+                            aria-label={showTeacherPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
+                          >
+                            {showTeacherPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                          </button>
+                        </div>
+                      </label>
+                    )}
+
+                    {teacherError && (
+                      <div className="login-error-msg" role="alert">
+                        {teacherError}
                       </div>
                     )}
 

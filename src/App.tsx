@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, MotionConfig, motion } from 'framer-motion';
-import { ArrowLeft, ArrowUpLeft, Building2, CalendarClock, CalendarDays, CalendarOff, Check, CheckCircle2, ChevronDown, ChevronLeft, CircleAlert, CircleHelp, ClipboardList, CloudCheck, Database, Eye, Gauge, GraduationCap, Home, LifeBuoy, LoaderCircle, LogOut, Menu, MousePointerClick, Repeat2, Settings, ShieldCheck, Sparkles, Table2, Users, X, type LucideIcon } from 'lucide-react';
+import { ArrowLeft, ArrowUpLeft, BookText, Building2, CalendarClock, CalendarDays, CalendarOff, Check, CheckCircle2, ChevronDown, ChevronLeft, CircleAlert, CircleHelp, ClipboardList, CloudCheck, Database, Eye, Gauge, GraduationCap, Home, LifeBuoy, LoaderCircle, LogOut, Menu, MousePointerClick, Repeat2, Settings, ShieldCheck, Sparkles, Table2, Users, X, type LucideIcon } from 'lucide-react';
 import DaysPage from './components/DaysPage';
-import { ClassesPage, TeachersPage } from './components/PeoplePages';
+import { ClassesPage, SubjectsPage, TeachersPage } from './components/PeoplePages';
 import RequirementsPage from './components/RequirementsPage';
 import { BookingsPage, ExceptionsPage, LimitsPage } from './components/RulesPages';
 import DashboardPage from './components/DashboardPage';
@@ -34,6 +34,7 @@ const tabs: { id: TabId; label: string; icon: LucideIcon; group: number }[] = [
   { id: 'days', label: 'أيام الدوام', icon: CalendarDays, group: 0 },
   { id: 'teachers', label: 'المعلمون', icon: Users, group: 0 },
   { id: 'classes', label: 'الفصول الدراسية', icon: GraduationCap, group: 0 },
+  { id: 'subjects', label: 'المواد الدراسية', icon: BookText, group: 0 },
   { id: 'requirements', label: 'نصاب المعلمين', icon: ClipboardList, group: 1 },
   { id: 'exceptions', label: 'الاستثناءات', icon: CalendarOff, group: 1 },
   { id: 'limits', label: 'حدود التكرار', icon: Repeat2, group: 1 },
@@ -49,6 +50,7 @@ const pageCopy: Record<TabId, { title: string; description: string }> = {
   days: { title: 'إعداد الجدول المدرسي', description: 'خطوات بسيطة، وجدول متوازن يناسب مدرستك. لنبدأ بتنظيم أسبوعك.' },
   teachers: { title: 'المعلمون', description: 'لكل معلم وقته. نظّم فريقك التعليمي بما يناسب أيام دوامه.' },
   classes: { title: 'الفصول الدراسية', description: 'الفصول ضمن كل صف دراسي، ومساحة منظّمة لكل فصل.' },
+  subjects: { title: 'المواد الدراسية', description: 'سجّل موادك لتظهر كاقتراحات جاهزة عند إدخال نصاب الحصص.' },
   requirements: { title: 'توزيع نصاب الحصص', description: 'وازن بين احتياجات الفصول وأنصبة المعلمين، حصةً بحصة.' },
   exceptions: { title: 'الاستثناءات', description: 'لأن لكل مدرسة تفاصيلها. خصّص الأوقات التي لا يناسبها الدوام.' },
   limits: { title: 'حدود التكرار', description: 'تفاصيل صغيرة تصنع توزيعاً أكثر توازناً لحصص المعلمين.' },
@@ -242,7 +244,7 @@ export default function App() {
   };
   const currentStep = tabs.find(item => item.id === tab)!.group;
   const completed = [data.days.some(day => day.enabled) && data.teachers.length > 0 && data.classes.length > 0, data.requirements.length > 0, !!data.schedule];
-  const counts: Partial<Record<TabId, number>> = { teachers: data.teachers.length, classes: data.classes.length };
+  const counts: Partial<Record<TabId, number>> = { teachers: data.teachers.length, classes: data.classes.length, subjects: data.subjects.length };
   // Most pages are pure CRUD forms, so a disabled <fieldset> around the whole page is enough to enforce "view only" —
   // it disables every nested button/input without touching each page. Schedule/Data/Settings mix in safe view-only
   // actions (print, export, seeing values) that a blanket disable would wrongly block, so they get a `readOnly` prop instead.
@@ -252,6 +254,7 @@ export default function App() {
       case 'days': return <DaysPage {...workspaceProps} />;
       case 'teachers': return <TeachersPage {...workspaceProps} />;
       case 'classes': return <ClassesPage {...workspaceProps} />;
+      case 'subjects': return <SubjectsPage {...workspaceProps} />;
       case 'requirements': return <RequirementsPage {...workspaceProps} />;
       case 'exceptions': return <ExceptionsPage {...workspaceProps} />;
       case 'limits': return <LimitsPage {...workspaceProps} />;
