@@ -80,6 +80,14 @@ export function DayCheckboxes({ data, selected, onChange }: { data: AppData; sel
   </label>)}</div>;
 }
 
+export function CheckboxList({ items, selected, onChange, emptyLabel }: { items: { id: string; label: string }[]; selected: string[]; onChange: (ids: string[]) => void; emptyLabel?: string }) {
+  if (!items.length) return emptyLabel ? <p className="muted small-text">{emptyLabel}</p> : null;
+  return <div className="day-checkboxes">{items.map(item => <label className={`day-checkbox ${selected.includes(item.id) ? 'checked' : ''}`} key={item.id}>
+    <input type="checkbox" checked={selected.includes(item.id)} onChange={() => onChange(selected.includes(item.id) ? selected.filter(id => id !== item.id) : [...selected, item.id])} />
+    <span className="checkbox-box">{selected.includes(item.id) && <Check size={12} strokeWidth={2.5} />}</span>{item.label}
+  </label>)}</div>;
+}
+
 export function Modal({ open, onClose, title, description, children, wide = false }: { open: boolean; onClose: () => void; title: string; description?: string; children: ReactNode; wide?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
   const closeRef = useRef(onClose);

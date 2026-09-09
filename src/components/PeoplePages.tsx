@@ -67,8 +67,14 @@ export function ClassesPage({ data, commit, notify, goTo, confirm }: WorkspacePr
     notify(form.id ? 'تم تحديث بيانات الصف.' : 'تمت إضافة الصف بنجاح.');
     reset();
   };
-  const remove = (schoolClass: SchoolClass) => confirm(`حذف الصف ${schoolClass.name}؟`, 'ستُحذف أيضاً أنصبة الحصص والاستثناءات والحجوزات المرتبطة بهذا الصف.', () => {
-    commit({ classes: data.classes.filter(item => item.id !== schoolClass.id), requirements: data.requirements.filter(item => item.classId !== schoolClass.id), classExceptions: data.classExceptions.filter(item => item.classId !== schoolClass.id), bookings: data.bookings.filter(item => item.classId !== schoolClass.id) });
+  const remove = (schoolClass: SchoolClass) => confirm(`حذف الصف ${schoolClass.name}؟`, 'ستُحذف أيضاً أنصبة الحصص والاستثناءات والحجوزات المرتبطة بهذا الصف، وتُزال من أي قسم يضمّها.', () => {
+    commit({
+      classes: data.classes.filter(item => item.id !== schoolClass.id),
+      requirements: data.requirements.filter(item => item.classId !== schoolClass.id),
+      classExceptions: data.classExceptions.filter(item => item.classId !== schoolClass.id),
+      bookings: data.bookings.filter(item => item.classId !== schoolClass.id),
+      sections: data.sections.map(section => ({ ...section, classIds: section.classIds.filter(id => id !== schoolClass.id) })),
+    });
     if (form.id === schoolClass.id) reset();
     notify('تم حذف الصف والبيانات المرتبطة به.');
   }, true);

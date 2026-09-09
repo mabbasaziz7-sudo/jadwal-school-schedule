@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import {
   CalendarDays,
   CheckCircle2,
+  Eye,
   GraduationCap,
   KeyRound,
   Lock,
@@ -12,7 +13,6 @@ import {
   Sparkles,
   UserCheck,
   Users,
-  Eye,
   EyeOff,
   ArrowLeft
 } from 'lucide-react';
@@ -27,15 +27,19 @@ interface LoginPageProps {
 }
 
 export default function LoginPage({ data, onLogin, loadDemo, notify }: LoginPageProps) {
-  const [role, setRole] = useState<'admin' | 'teacher'>('teacher');
+  const [role, setRole] = useState<'admin' | 'teacher' | 'supervisor'>('teacher');
   const [selectedTeacherId, setSelectedTeacherId] = useState(data.teachers[0]?.id ?? '');
+  const [selectedSupervisorId, setSelectedSupervisorId] = useState(data.supervisors[0]?.id ?? '');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
 
   const adminPass = data.adminPassword || 'admin';
   const hasTeachers = data.teachers.length > 0;
+  const hasSupervisors = data.supervisors.length > 0;
   const currentTeacher = data.teachers.find(t => t.id === selectedTeacherId) ?? data.teachers[0];
+  const currentSupervisor = data.supervisors.find(s => s.id === selectedSupervisorId) ?? data.supervisors[0];
+  const currentSupervisorSection = currentSupervisor ? data.sections.find(section => section.id === currentSupervisor.sectionId) : undefined;
 
   const handleAdminSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -56,6 +60,16 @@ export default function LoginPage({ data, onLogin, loadDemo, notify }: LoginPage
     }
     notify(`مرحباً بك أستاذ/ة ${currentTeacher.name}`, 'success');
     onLogin({ role: 'teacher', teacherId: currentTeacher.id });
+  };
+
+  const handleSupervisorSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    if (!currentSupervisor) {
+      notify('الرجاء اختيار المشرف أولاً أو إضافة مشرفين من الإعدادات والصلاحيات.', 'error');
+      return;
+    }
+    notify(`مرحباً بك ${currentSupervisor.name}`, 'success');
+    onLogin({ role: 'supervisor', supervisorId: currentSupervisor.id });
   };
 
   const handleQuickAdmin = () => {
@@ -104,6 +118,17 @@ export default function LoginPage({ data, onLogin, loadDemo, notify }: LoginPage
               <Users size={18} />
               <span>بوابة المعلم</span>
               <small>عرض الجدول الشخصي</small>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={role === 'supervisor'}
+              className={`login-tab ${role === 'supervisor' ? 'login-tab-active' : ''}`}
+              onClick={() => { setRole('supervisor'); setError(''); }}
+            >
+              <Eye size={18} />
+              <span>مشرف القسم</span>
+              <small>عرض قسمه فقط</small>
             </button>
             <button
               type="button"
@@ -196,6 +221,75 @@ export default function LoginPage({ data, onLogin, loadDemo, notify }: LoginPage
                       <Button variant="secondary" icon={Sparkles} onClick={loadDemo}>
                         تحميل مدرسة تجريبية جاهزة
                       </Button>
+                      <Button onClick={() => setRole('admin')}>
+                        الدخول كمسؤول المدرسة
+                        <ArrowLeft size={16} />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </motion.div>
+            ) : role === 'supervisor' ? (
+              <motion.div
+                key="supervisor-form"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                <div className="login-intro">
+                  <h2>مرحباً بك في بوابة مشرف القسم</h2>
+                  <p>اختر اسمك من القائمة لعرض جدول وصفوف قسمك فقط، بصلاحية اطّلاع دون تعديل.</p>
+                </div>
+
+                {hasSupervisors ? (
+                  <form onSubmit={handleSupervisorSubmit} className="login-form">
+                    <label className="login-field">
+                      <span className="login-field-label">
+                        <Eye size={16} />
+                        اختر اسم المشرف
+                      </span>
+                      <select
+                        value={currentSupervisor?.id ?? ''}
+                        onChange={(e) => setSelectedSupervisorId(e.target.value)}
+                        className="login-select"
+                        required
+                      >
+                        {data.supervisors.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    {currentSupervisor && (
+                      <div className="teacher-preview-box">
+                        <div className="t-preview-header">
+                          <span className="t-avatar">{currentSupervisor.name.charAt(0)}</span>
+                          <div>
+                            <strong>{currentSupervisor.name}</strong>
+                            <span>القسم المُسند: <strong>{currentSupervisorSection?.name || 'غير محدد'}</strong></span>
+                          </div>
+                        </div>
+                        <div className="t-preview-stats">
+                          <div>
+                            <span>عدد الصفوف:</span>
+                            <strong className="numeric">{currentSupervisorSection?.classIds.length ?? 0} صف</strong>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    <Button type="submit" icon={LogIn} className="login-submit-btn">
+                      دخول وعرض قسمي
+                    </Button>
+                  </form>
+                ) : (
+                  <div className="login-empty-teachers">
+                    <Eye size={36} className="text-muted" />
+                    <h3>لا توجد بيانات مشرفين مسجلة بعد</h3>
+                    <p>قم بالدخول كمسؤول لإنشاء الأقسام وإسناد مشرفين لها من الإعدادات والصلاحيات.</p>
+                    <div className="login-empty-actions">
                       <Button onClick={() => setRole('admin')}>
                         الدخول كمسؤول المدرسة
                         <ArrowLeft size={16} />

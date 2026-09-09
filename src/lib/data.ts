@@ -1,4 +1,4 @@
-export type TabId = 'dashboard' | 'days' | 'teachers' | 'classes' | 'requirements' | 'exceptions' | 'limits' | 'bookings' | 'distribute' | 'schedule' | 'data';
+export type TabId = 'dashboard' | 'days' | 'teachers' | 'classes' | 'requirements' | 'exceptions' | 'limits' | 'bookings' | 'distribute' | 'schedule' | 'data' | 'settings';
 
 export interface SchoolDay {
   id: string;
@@ -62,6 +62,20 @@ export interface Booking {
   subject: string;
 }
 
+/** A group of classes an admin hands off to a section supervisor for read-only monitoring. */
+export interface Section {
+  id: string;
+  name: string;
+  classIds: string[];
+}
+
+/** A read-only account scoped to one section, assigned by the admin. Logs in by picking a name, like a teacher. */
+export interface Supervisor {
+  id: string;
+  name: string;
+  sectionId: string;
+}
+
 export interface Lesson {
   id: string;
   teacherId: string;
@@ -97,12 +111,15 @@ export interface AppData {
   adminPassword?: string;
   /** Start time ("HH:MM", 24h) of each period, indexed from period 1 at position 0. Powers class-time reminders. */
   periodTimes: string[];
+  sections: Section[];
+  supervisors: Supervisor[];
 }
 
-export type UserRole = 'admin' | 'teacher';
+export type UserRole = 'admin' | 'teacher' | 'supervisor';
 export interface UserSession {
   role: UserRole;
   teacherId?: string;
+  supervisorId?: string;
 }
 
 export const SESSION_KEY = 'jadwal-session-v1';
@@ -147,6 +164,8 @@ export function createDefaultData(): AppData {
     schedule: null,
     adminPassword: 'admin',
     periodTimes: defaultPeriodTimes(),
+    sections: [],
+    supervisors: [],
   };
 }
 
@@ -220,6 +239,21 @@ export function parseBackup(raw: string): AppData {
   const periodTimes = Array.isArray(rawPeriodTimes) && rawPeriodTimes.length <= 12 && rawPeriodTimes.every(isValidTimeString)
     ? [...rawPeriodTimes as string[]]
     : defaultPeriodTimes();
+  // Sections/supervisors are newer, optional fields — fall back to empty rather than rejecting older backups.
+  const rawSections = (value as Record<string, unknown>).sections;
+  const sections = Array.isArray(rawSections) && rawSections.length <= 100 && rawSections.every(isRecord)
+    ? (rawSections as Record<string, unknown>[]).filter(item =>
+        isText(item.id) && item.id && isText(item.name) && item.name.toString().trim() &&
+        Array.isArray(item.classIds) && item.classIds.every(id => classIds.has(id)))
+      .map(item => ({ id: item.id as string, name: item.name as string, classIds: [...new Set(item.classIds as string[])] }))
+    : [];
+  const sectionIds = new Set(sections.map(section => section.id));
+  const rawSupervisors = (value as Record<string, unknown>).supervisors;
+  const supervisors = Array.isArray(rawSupervisors) && rawSupervisors.length <= 100 && rawSupervisors.every(isRecord)
+    ? (rawSupervisors as Record<string, unknown>[]).filter(item =>
+        isText(item.id) && item.id && isText(item.name) && item.name.toString().trim() && sectionIds.has(item.sectionId as string))
+      .map(item => ({ id: item.id as string, name: item.name as string, sectionId: item.sectionId as string }))
+    : [];
   // Rebuild derived schedules rather than trusting imported, potentially stale assignments.
   return {
     ...createDefaultData(),
@@ -236,6 +270,8 @@ export function parseBackup(raw: string): AppData {
     schedule: null,
     adminPassword: typeof (value as Record<string, unknown>).adminPassword === 'string' && (value as Record<string, unknown>).adminPassword ? String((value as Record<string, unknown>).adminPassword) : 'admin',
     periodTimes,
+    sections,
+    supervisors,
   };
 }
 

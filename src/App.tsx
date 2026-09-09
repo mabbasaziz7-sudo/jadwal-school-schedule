@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, MotionConfig, motion } from 'framer-motion';
-import { ArrowLeft, ArrowUpLeft, Building2, CalendarClock, CalendarDays, CalendarOff, Check, CheckCircle2, ChevronDown, ChevronLeft, CircleAlert, CircleHelp, ClipboardList, CloudCheck, Database, Gauge, GraduationCap, Home, LifeBuoy, LoaderCircle, LogOut, Menu, MousePointerClick, Repeat2, ShieldCheck, Sparkles, Table2, Users, X, type LucideIcon } from 'lucide-react';
+import { ArrowLeft, ArrowUpLeft, Building2, CalendarClock, CalendarDays, CalendarOff, Check, CheckCircle2, ChevronDown, ChevronLeft, CircleAlert, CircleHelp, ClipboardList, CloudCheck, Database, Eye, Gauge, GraduationCap, Home, LifeBuoy, LoaderCircle, LogOut, Menu, MousePointerClick, Repeat2, Settings, ShieldCheck, Sparkles, Table2, Users, X, type LucideIcon } from 'lucide-react';
 import DaysPage from './components/DaysPage';
 import { ClassesPage, TeachersPage } from './components/PeoplePages';
 import RequirementsPage from './components/RequirementsPage';
@@ -9,11 +9,13 @@ import DashboardPage from './components/DashboardPage';
 import SchedulePage from './components/SchedulePage';
 import DistributePage from './components/DistributePage';
 import DataPage from './components/DataPage';
+import SettingsPage from './components/SettingsPage';
 import LoginPage from './components/LoginPage';
 import TeacherPortal from './components/TeacherPortal';
+import SupervisorPortal from './components/SupervisorPortal';
 import NotificationCenter from './components/NotificationCenter';
 import InstallAppButton from './components/InstallAppButton';
-import { Button, Field, IconButton, Modal, type WorkspaceProps } from './components/ui';
+import { Button, IconButton, Modal, type WorkspaceProps } from './components/ui';
 import { loadData, makeDemoData, SESSION_KEY, STORAGE_KEY, type AppData, type TabId, type UserSession } from './lib/data';
 import { generateSchedule } from './lib/scheduler';
 import {
@@ -39,6 +41,7 @@ const tabs: { id: TabId; label: string; icon: LucideIcon; group: number }[] = [
   { id: 'distribute', label: 'التوزيع اليدوي', icon: MousePointerClick, group: 2 },
   { id: 'schedule', label: 'الجدول المدرسي', icon: Table2, group: 2 },
   { id: 'data', label: 'إدارة البيانات', icon: Database, group: 2 },
+  { id: 'settings', label: 'الإعدادات والصلاحيات', icon: Settings, group: 2 },
 ];
 
 const pageCopy: Record<TabId, { title: string; description: string }> = {
@@ -53,6 +56,7 @@ const pageCopy: Record<TabId, { title: string; description: string }> = {
   distribute: { title: 'التوزيع اليدوي', description: 'وزّع الحصص بنفسك: اختر معلماً أو يوماً أو صفاً وأسند الحصص مع شرح أثر كل تغيير.' },
   schedule: { title: 'الجدول المدرسي', description: 'أسبوعك الدراسي في صورة واحدة. أنشئه، راجعه، وشاركه.' },
   data: { title: 'إدارة البيانات', description: 'عملك محفوظ، وتحت سيطرتك. احتفظ بنسخة أينما احتجت إليها.' },
+  settings: { title: 'الإعدادات والصلاحيات', description: 'بيانات المدرسة، وأقسام دراسية يشرف عليها مشرفون بصلاحية العرض فقط.' },
 };
 
 interface Confirmation { title: string; description: string; action: () => void; destructive: boolean }
@@ -66,7 +70,7 @@ export default function App() {
       const stored = localStorage.getItem(SESSION_KEY);
       if (stored) {
         const parsed = JSON.parse(stored) as UserSession;
-        if (parsed && (parsed.role === 'admin' || parsed.role === 'teacher')) {
+        if (parsed && (parsed.role === 'admin' || parsed.role === 'teacher' || parsed.role === 'supervisor')) {
           return parsed;
         }
       }
@@ -76,12 +80,6 @@ export default function App() {
   const [tab, setTab] = useState<TabId>('dashboard');
   const [mobileOpen, setMobileOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [settings, setSettings] = useState({
-    schoolName: data.schoolName,
-    year: data.year,
-    adminPassword: data.adminPassword || 'admin',
-  });
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
   const [toast, setToast] = useState<Toast | null>(null);
   const [notifications, setNotifications] = useState<AppNotification[]>(loadNotifications);
@@ -161,7 +159,7 @@ export default function App() {
     return () => desktop.removeEventListener('change', closeOnDesktop);
   }, []);
   useEffect(() => {
-    if (!mobileOpen || helpOpen || settingsOpen || confirmation) return;
+    if (!mobileOpen || helpOpen || confirmation) return;
     const previousFocus = document.activeElement as HTMLElement;
     const sidebar = document.getElementById('main-sidebar');
     const frame = requestAnimationFrame(() => sidebar?.querySelector<HTMLElement>('.nav-item-active')?.focus());
@@ -177,7 +175,7 @@ export default function App() {
     };
     document.addEventListener('keydown', handleKey);
     return () => { cancelAnimationFrame(frame); document.removeEventListener('keydown', handleKey); previousFocus?.focus(); };
-  }, [mobileOpen, helpOpen, settingsOpen, confirmation]);
+  }, [mobileOpen, helpOpen, confirmation]);
 
   const runGeneration = async (source: AppData = data) => {
     if (generationRunning.current) return;
@@ -215,28 +213,6 @@ export default function App() {
     else applyDemo();
   };
 
-  const openSettings = () => {
-    setSettings({
-      schoolName: data.schoolName,
-      year: data.year,
-      adminPassword: data.adminPassword || 'admin',
-    });
-    setSettingsOpen(true);
-  };
-
-  const saveSettings = (event: FormEvent) => {
-    event.preventDefault();
-    if (!settings.schoolName.trim() || !settings.year.trim()) return;
-    commit({
-      schoolName: settings.schoolName.trim(),
-      year: settings.year.trim(),
-      adminPassword: settings.adminPassword.trim() || 'admin',
-      schedule: data.schedule,
-    });
-    setSettingsOpen(false);
-    notify('تم حفظ إعدادات المدرسة وكلمة المرور.');
-  };
-
   const workspaceProps: WorkspaceProps = {
     data,
     commit,
@@ -262,6 +238,7 @@ export default function App() {
       case 'distribute': return <DistributePage {...workspaceProps} onGenerate={() => void runGeneration()} generating={generating} />;
       case 'schedule': return <SchedulePage {...workspaceProps} onGenerate={() => void runGeneration()} generating={generating} progress={progress} />;
       case 'data': return <DataPage {...workspaceProps} />;
+      case 'settings': return <SettingsPage {...workspaceProps} />;
     }
   };
 
@@ -310,6 +287,47 @@ export default function App() {
           onGoToAdmin={() => setSession({ role: 'admin' })}
           notify={notify}
           pushNotification={pushNotification}
+          notifications={notifications}
+          notifPermission={notifPermission}
+          onMarkNotificationRead={markNotificationRead}
+          onMarkAllNotificationsRead={markAllNotificationsRead}
+          onClearNotifications={clearNotifications}
+          onRequestNotifPermission={requestNotifPermission}
+        />
+        <div className="toast-container" aria-live="polite">
+          <AnimatePresence>
+            {toast && (
+              <motion.div
+                className={`toast toast-${toast.type}`}
+                key={toast.id}
+                initial={{ opacity: 0, x: -16, y: 8 }}
+                animate={{ opacity: 1, x: 0, y: 0 }}
+                exit={{ opacity: 0, y: 8 }}
+                role={toast.type === 'error' ? 'alert' : 'status'}
+              >
+                {toast.type === 'error' ? <CircleAlert size={20} /> : toast.type === 'info' ? <CircleHelp size={20} /> : <CheckCircle2 size={20} />}
+                <p>{toast.message}</p>
+                <IconButton icon={X} label="إغلاق الإشعار" onClick={() => setToast(null)} />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </MotionConfig>
+    );
+  }
+
+  // If logged in as a Section Supervisor, show the read-only Supervisor Portal
+  if (session.role === 'supervisor') {
+    const activeSupervisorId = session.supervisorId || data.supervisors[0]?.id || '';
+    return (
+      <MotionConfig reducedMotion="user">
+        <SupervisorPortal
+          data={data}
+          supervisorId={activeSupervisorId}
+          onSwitchSupervisor={(id) => setSession({ role: 'supervisor', supervisorId: id })}
+          onLogout={() => { setSession(null); notify('تم تسجيل الخروج بنجاح.'); }}
+          onGoToAdmin={() => setSession({ role: 'admin' })}
+          notify={notify}
           notifications={notifications}
           notifPermission={notifPermission}
           onMarkNotificationRead={markNotificationRead}
@@ -413,7 +431,7 @@ export default function App() {
               </span>
               <ArrowUpLeft size={15} />
             </button>
-            <button className="school-profile" onClick={openSettings}>
+            <button className="school-profile" onClick={() => goTo('settings')}>
               <span className="school-avatar">
                 <Building2 size={21} strokeWidth={1.6} />
               </span>
@@ -463,6 +481,18 @@ export default function App() {
                 </button>
               )}
 
+              {data.supervisors.length > 0 && (
+                <button
+                  type="button"
+                  className="topbar-btn-soft"
+                  onClick={() => setSession({ role: 'supervisor', supervisorId: data.supervisors[0]?.id })}
+                  title="معاينة بوابة مشرف القسم"
+                >
+                  <Eye size={14} />
+                  <span>بوابة المشرف</span>
+                </button>
+              )}
+
               <button
                 type="button"
                 className="topbar-btn-soft text-danger-soft"
@@ -475,7 +505,7 @@ export default function App() {
 
               <span className="topbar-divider" />
 
-              <button className="year-picker" onClick={openSettings}>
+              <button className="year-picker" onClick={() => goTo('settings')}>
                 <CalendarDays size={16} strokeWidth={1.6} />
                 <span className="year-caption">العام الدراسي</span>
                 <bdi className="latin">{data.year}</bdi>
@@ -641,51 +671,6 @@ export default function App() {
           </div>
         </Modal>
 
-        <Modal
-          open={settingsOpen}
-          onClose={() => setSettingsOpen(false)}
-          title="إعدادات المدرسة والحساب"
-          description="تفاصيل المدرسة وكلمة مرور حساب المسؤول."
-        >
-          <form onSubmit={saveSettings} className="modal-body">
-            <div className="form-grid">
-              <Field label="اسم المدرسة">
-                <input
-                  required
-                  maxLength={80}
-                  value={settings.schoolName}
-                  onChange={(event) => setSettings({ ...settings, schoolName: event.target.value })}
-                  placeholder="اسم مدرستك"
-                />
-              </Field>
-              <Field label="العام الدراسي">
-                <input
-                  required
-                  maxLength={30}
-                  value={settings.year}
-                  onChange={(event) => setSettings({ ...settings, year: event.target.value })}
-                  placeholder="2025 - 2026"
-                />
-              </Field>
-              <Field label="كلمة مرور المسؤول" hint="تُستخدم لتسجيل الدخول في صفحة الإدارة (الافتراضية: admin)">
-                <input
-                  required
-                  maxLength={40}
-                  type="text"
-                  value={settings.adminPassword}
-                  onChange={(event) => setSettings({ ...settings, adminPassword: event.target.value })}
-                  placeholder="admin"
-                />
-              </Field>
-            </div>
-            <div className="modal-actions">
-              <Button type="submit">حفظ الإعدادات</Button>
-              <Button variant="secondary" onClick={() => setSettingsOpen(false)}>
-                إلغاء
-              </Button>
-            </div>
-          </form>
-        </Modal>
 
         <Modal
           open={!!confirmation}

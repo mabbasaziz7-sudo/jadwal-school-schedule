@@ -249,6 +249,7 @@ select { appearance: none; padding-left: 31px !important; background-image: url(
 .color-4 { --lesson-bg: #f8eded; --lesson-ink: #a77a78; --lesson-accent: #dbb3b1; background: var(--lesson-bg); color: var(--lesson-ink); }
 .color-5 { --lesson-bg: #eaf5f0; --lesson-ink: #5e8975; --lesson-accent: #9dc7b6; background: var(--lesson-bg); color: var(--lesson-ink); }
 .class-icon { display: flex; align-items: center; justify-content: center; width: 33px; height: 33px; color: #80a16c; background: #f0f7e9; border-radius: 7px; }
+.permission-pill { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 12px; background: #eef3fb; color: #3d6bab; font-size: 10.5px; font-weight: 600; }
 .search-input { display: flex; align-items: center; width: 200px; height: 35px; padding: 0 10px; gap: 7px; border: 1px solid #e1ead9; background: #fcfefa; border-radius: 6px; color: #a4b49a; }
 .search-input input { min-width: 0; width: 100%; background: none; border: 0; padding: 5px 0; font-size: 11.5px; color: #69855a; }
 .search-input input::placeholder { font-size: 10.5px; color: #a8b79d; }
@@ -810,7 +811,7 @@ select.compact-select { width: auto; max-width: 230px; font-size: 11px; min-heig
 .dot-sep { opacity: 0.5; }
 
 .login-card { background: #fff; border: 1px solid #dfe8e1; border-radius: 14px; box-shadow: 0 12px 40px #1833250a; overflow: hidden; }
-.login-tabs { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid #e9eee9; background: #fbfdfb; }
+.login-tabs { display: grid; grid-template-columns: repeat(3, 1fr); border-bottom: 1px solid #e9eee9; background: #fbfdfb; }
 .login-tab { border: 0; background: none; padding: 18px 16px; display: flex; flex-direction: column; align-items: center; gap: 5px; color: #7e8f83; border-bottom: 2px solid transparent; transition: all 180ms ease; }
 .login-tab span { font-size: 13.5px; font-weight: 600; }
 .login-tab small { font-size: 10px; color: #9aa89f; }
