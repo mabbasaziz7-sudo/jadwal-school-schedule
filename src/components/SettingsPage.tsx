@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Boxes, Building2, Eye, GraduationCap, KeyRound, Landmark, Layers, Pencil, Plus, ShieldCheck, ShieldQuestion, Trash2, UserCog, Wind } from 'lucide-react';
+import { Boxes, Building2, Eye, GraduationCap, KeyRound, Landmark, Layers, Pencil, Plus, ShieldCheck, ShieldQuestion, Sparkles, Trash2, UserCog, Wind } from 'lucide-react';
 import {
   KUWAIT_EDUCATION_ZONES,
   PERMISSION_RESOURCES,
@@ -14,7 +14,8 @@ import {
   type Supervisor,
   type Wing,
 } from '../lib/data';
-import { Button, CheckboxList, EmptyState, Field, IconButton, Panel, Toggle, type WorkspaceProps } from './ui';
+import { getAiApiKey, setAiApiKey } from '../lib/aiKey';
+import { Button, CheckboxList, EmptyState, Field, IconButton, InlineNotice, Panel, Toggle, type WorkspaceProps } from './ui';
 
 interface SettingsPageProps extends WorkspaceProps {
   /** True for a staff account with only "view" access here: hides the admin password value so a viewer can't read it off a disabled field. */
@@ -53,6 +54,15 @@ export default function SettingsPage({ data, commit, notify, confirm, readOnly =
     notify('تم حفظ بيانات وزارة التربية الرسمية.');
   };
   const toggleOfficialHeader = () => commit({ showOfficialHeader: !data.showOfficialHeader, schedule: data.schedule });
+
+  // --- AI API key (for image/PDF-to-schedule conversion) ------------------
+  // Stored separately from AppData/backups on purpose — see src/lib/aiKey.ts.
+  const [aiKey, setAiKeyInput] = useState(getAiApiKey);
+  const saveAiKey = (event: FormEvent) => {
+    event.preventDefault();
+    setAiApiKey(aiKey);
+    notify(aiKey.trim() ? 'تم حفظ مفتاح الذكاء الاصطناعي على هذا الجهاز.' : 'تم حذف مفتاح الذكاء الاصطناعي.');
+  };
 
   // --- Sections ---------------------------------------------------------
   const blankSection = (): Section => ({ id: '', name: '', classIds: [] });
@@ -164,7 +174,9 @@ export default function SettingsPage({ data, commit, notify, confirm, readOnly =
   }, true);
   const permissionLabel: Record<PermissionLevel, string> = { none: 'بلا صلاحية', view: 'عرض فقط', edit: 'عرض وتعديل' };
 
-  return <div className="page-stack">
+  // A disabled <fieldset> covers every editable control on this page in one place for "view"-only
+  // access — the admin password field is hidden outright above (a disabled input still shows its value).
+  return <fieldset disabled={readOnly} className="page-stack">
     <Panel title="إعدادات المدرسة والحساب" description="اسم المدرسة، العام الدراسي، وكلمة مرور دخول المسؤول." icon={Building2}>
       <form onSubmit={saveSchool} className="panel-form">
         <div className="form-grid two-columns">
@@ -220,6 +232,18 @@ export default function SettingsPage({ data, commit, notify, confirm, readOnly =
         </div>
         <Toggle checked={data.showOfficialHeader} onChange={toggleOfficialHeader} label="إظهار الترويسة الرسمية عند الطباعة" />
       </div>
+    </Panel>
+
+    <Panel title="مفتاح الذكاء الاصطناعي" description="يُستخدم فقط عند تحويل صورة أو ملف PDF إلى جدول من صفحة الجدول المدرسي." icon={Sparkles}>
+      <form onSubmit={saveAiKey} className="panel-form">
+        <div className="form-grid">
+          <Field label="مفتاح Anthropic API" optional hint="يبقى محفوظاً على هذا الجهاز فقط، ولا يُضمَّن في النسخ الاحتياطية المُصدَّرة.">
+            <input maxLength={200} type="text" placeholder="sk-ant-..." value={aiKey} onChange={event => setAiKeyInput(event.target.value)} />
+          </Field>
+        </div>
+        <InlineNotice kind="info">عند استخدام هذه الميزة، تُرسل الصورة أو الملف المرفوع إلى خدمة Anthropic الخارجية لقراءته. لا يحدث هذا إلا عند الضغط الصريح على "تحويل إلى جدول بالذكاء الاصطناعي".</InlineNotice>
+        <div className="form-actions"><Button type="submit">حفظ المفتاح</Button></div>
+      </form>
     </Panel>
 
     <Panel title={sectionForm.id ? 'تعديل القسم' : 'إضافة قسم دراسي'} description="اجمع مجموعة من الصفوف في قسم واحد لإسناده لمشرف يطّلع عليه فقط." icon={Layers} id="section-form">
@@ -402,5 +426,5 @@ export default function SettingsPage({ data, commit, notify, confirm, readOnly =
     {!data.classes.length && (
       <div className="text-hint"><GraduationCap size={16} /><span>أضف فصولاً دراسية أولاً لتتمكن من تكوين الأقسام.</span></div>
     )}
-  </div>;
+  </fieldset>;
 }

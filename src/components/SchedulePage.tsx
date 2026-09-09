@@ -1,11 +1,12 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { motion } from 'framer-motion';
-import { AlertTriangle, ArrowLeft, CalendarDays, CheckCircle2, ChevronDown, Download, Edit3, GraduationCap, Info, LockKeyhole, MousePointerClick, Pencil, Plus, Printer, RefreshCw, Sparkles, Table2, Trash2, Users, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, CalendarDays, CheckCircle2, ChevronDown, Download, Edit3, GraduationCap, Info, LockKeyhole, MousePointerClick, Pencil, Plus, Printer, RefreshCw, Sparkles, Table2, Trash2, Upload, Users, X } from 'lucide-react';
 import { csvCell, downloadFile, type Lesson } from '../lib/data';
 import { moveLesson, removeManualLesson, startBlankSchedule, upsertManualLesson } from '../lib/scheduler';
 import { Button, CheckboxList, EmptyState, Field, InlineNotice, Modal, Panel, type WorkspaceProps } from './ui';
 import { OfficialPrintHeader, OfficialPrintFooter } from './OfficialPrintHeader';
 import AttachmentPanel from './AttachmentPanel';
+import ImportScheduleModal from './ImportScheduleModal';
 
 interface ScheduleProps extends WorkspaceProps {
   onGenerate: () => void;
@@ -36,6 +37,7 @@ export default function SchedulePage({ data, commit, notify, goTo, loadDemo, onG
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkSelection, setBulkSelection] = useState<BulkSelection>({ classIds: [], teacherIds: [], supervisorIds: [] });
   const [bulkJobs, setBulkJobs] = useState<{ kind: 'class' | 'teacher'; id: string }[] | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
   const days = data.days.filter(day => day.enabled);
   const options = mode === 'class' ? data.classes : data.teachers;
   const selected = options.find(item => item.id === selectedId) ?? options[0];
@@ -143,6 +145,7 @@ export default function SchedulePage({ data, commit, notify, goTo, loadDemo, onG
       <EmptyState icon={CalendarDays} title={ready ? 'كل شيء جاهز. لنصنع جدولك.' : 'جدولك المنظّم، على بُعد خطوات'} description={ready ? 'سنوزّع الحصص حسب الأنصبة، مع تجنّب تعارض المعلمين ومراعاة القيود التي أضفتها.' : 'أكمل البيانات الأساسية لتوليد جدول مدرسي، أو ابدأ جدولاً فارغاً وأدخل الحصص يدوياً بنفسك.'}>
         {!readOnly && <Button icon={Sparkles} onClick={onGenerate} disabled={!ready} loading={generating}>إنشاء الجدول تلقائياً</Button>}
         {!readOnly && <Button variant="secondary" icon={Edit3} onClick={startManualSchedule} disabled={!data.classes.length || !data.teachers.length}>بدء جدول يدوي فارغ</Button>}
+        {!readOnly && <Button variant="secondary" icon={Upload} onClick={() => setImportOpen(true)} disabled={!data.classes.length || !data.teachers.length}>تحويل ملف إلى جدول</Button>}
         {!readOnly && <Button variant="ghost" onClick={loadDemo} disabled={generating}>تجربة مثال جاهز<ArrowLeft size={15} /></Button>}
       </EmptyState>
       <div className="readiness-list">
@@ -151,7 +154,7 @@ export default function SchedulePage({ data, commit, notify, goTo, loadDemo, onG
     </Panel> : <>
       <div className={`schedule-result ${schedule.warnings.length ? 'needs-review' : ''}`}><div>{schedule.warnings.length ? <AlertTriangle size={19} /> : <CheckCircle2 size={20} />}<strong>{schedule.warnings.length ? 'الجدول يحتاج إلى مراجعة' : 'جدولك جاهز لأسبوع أكثر تنظيماً'}</strong><span>{schedule.placed} من {schedule.requested} حصة موزّعة</span></div>{!readOnly && <Button variant="secondary" icon={RefreshCw} onClick={onGenerate} loading={generating}>إعادة التوليد</Button>}</div>
       {schedule.warnings.length > 0 && <details className="schedule-warnings" open><summary><AlertTriangle size={16} /><strong>ملاحظات تحتاج انتباهك ({schedule.warnings.length})</strong><ChevronDown size={16} /></summary><ul>{schedule.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul><p>المولّد يبحث عن توزيع مناسب، وقد تحتاج القيود المتعارضة إلى تعديل أو إعادة توليد.</p></details>}
-      <div className="schedule-controls"><div className="segmented-control"><button className={mode === 'class' ? 'selected' : ''} onClick={() => { setMode('class'); setSelectedId(data.classes[0]?.id ?? ''); }}><GraduationCap size={16} />حسب الفصل</button><button className={mode === 'teacher' ? 'selected' : ''} onClick={() => { setMode('teacher'); setSelectedId(data.teachers[0]?.id ?? ''); }}><Users size={16} />حسب المعلم</button></div><select aria-label={mode === 'class' ? 'اختر الفصل لعرض جدوله' : 'اختر المعلم لعرض جدوله'} value={selected?.id ?? ''} onChange={event => setSelectedId(event.target.value)} className="schedule-select">{options.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select><div className="schedule-export"><Button variant="secondary" icon={MousePointerClick} onClick={() => goTo('distribute')}>توزيع يدوي</Button><Button variant="secondary" icon={Download} onClick={exportCsv}>تصدير CSV</Button><Button variant="secondary" icon={Users} onClick={() => setBulkOpen(true)}>طباعة متعددة</Button><Button variant="secondary" icon={Printer} onClick={() => window.print()}>طباعة</Button></div></div>
+      <div className="schedule-controls"><div className="segmented-control"><button className={mode === 'class' ? 'selected' : ''} onClick={() => { setMode('class'); setSelectedId(data.classes[0]?.id ?? ''); }}><GraduationCap size={16} />حسب الفصل</button><button className={mode === 'teacher' ? 'selected' : ''} onClick={() => { setMode('teacher'); setSelectedId(data.teachers[0]?.id ?? ''); }}><Users size={16} />حسب المعلم</button></div><select aria-label={mode === 'class' ? 'اختر الفصل لعرض جدوله' : 'اختر المعلم لعرض جدوله'} value={selected?.id ?? ''} onChange={event => setSelectedId(event.target.value)} className="schedule-select">{options.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select><div className="schedule-export">{!readOnly && <Button variant="secondary" icon={Upload} onClick={() => setImportOpen(true)}>تحويل ملف إلى جدول</Button>}<Button variant="secondary" icon={MousePointerClick} onClick={() => goTo('distribute')}>توزيع يدوي</Button><Button variant="secondary" icon={Download} onClick={exportCsv}>تصدير CSV</Button><Button variant="secondary" icon={Users} onClick={() => setBulkOpen(true)}>طباعة متعددة</Button><Button variant="secondary" icon={Printer} onClick={() => window.print()}>طباعة</Button></div></div>
       <section className="timetable-panel">
         <OfficialPrintHeader data={data} subtitle={`جدول ${mode === 'class' ? 'الفصل' : 'المعلم'}: ${selected?.name ?? ''}`} />
         <div className="timetable-heading"><div><span className="timetable-eyebrow">{data.schoolName}</span><h2>الجدول الأسبوعي: {selected?.name}</h2></div><span className="academic-year">العام الدراسي <bdi className="latin">{data.year}</bdi></span></div>
@@ -222,5 +225,7 @@ export default function SchedulePage({ data, commit, notify, goTo, loadDemo, onG
         </div>
       </div>
     </Modal>
+
+    <ImportScheduleModal open={importOpen} onClose={() => setImportOpen(false)} data={data} commit={commit} notify={notify} onOpenSettings={() => goTo('settings')} />
   </div>;
 }
