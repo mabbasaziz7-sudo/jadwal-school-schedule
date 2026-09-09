@@ -175,9 +175,9 @@ export default function SupervisorPortal({
               <GraduationCap size={20} />
             </div>
             <div className="t-stat-data">
-              <span className="t-stat-label">صفوف القسم</span>
-              <strong className="numeric">{sectionClasses.length} <span>صف دراسي</span></strong>
-              <small className="t-stat-sub">{sectionClasses.map(item => item.name).join(' • ') || 'لا توجد صفوف'}</small>
+              <span className="t-stat-label">فصول القسم</span>
+              <strong className="numeric">{sectionClasses.length} <span>فصل دراسي</span></strong>
+              <small className="t-stat-sub">{sectionClasses.map(item => item.name).join(' • ') || 'لا توجد فصول'}</small>
             </div>
           </div>
 
@@ -188,7 +188,7 @@ export default function SupervisorPortal({
             <div className="t-stat-data">
               <span className="t-stat-label">المعلمون في القسم</span>
               <strong>{sectionTeacherIds.size} <span>معلم</span></strong>
-              <small className="t-stat-sub">يُدرّسون صفوف هذا القسم</small>
+              <small className="t-stat-sub">يُدرّسون فصول هذا القسم</small>
             </div>
           </div>
 
@@ -199,21 +199,21 @@ export default function SupervisorPortal({
             <div className="t-stat-data">
               <span className="t-stat-label">الحصص الموزعة</span>
               <strong className="numeric">{sectionLessonCount} <span>حصة أسبوعياً</span></strong>
-              <small className="t-stat-sub">عبر جميع صفوف القسم</small>
+              <small className="t-stat-sub">عبر جميع فصول القسم</small>
             </div>
           </div>
         </div>
 
         <section className="teacher-schedule-panel">
-          <OfficialPrintHeader data={data} subtitle={`جدول الصف: ${selectedClass?.name ?? ''} (قسم ${section.name})`} />
+          <OfficialPrintHeader data={data} subtitle={`جدول الفصل: ${selectedClass?.name ?? ''} (قسم ${section.name})`} />
           <div className="panel-header-row">
             <div>
-              <h2>جدول الصف الأسبوعي</h2>
-              <p>اختر صفاً من قسمك لعرض جدوله الأسبوعي كاملاً.</p>
+              <h2>جدول الفصل الأسبوعي</h2>
+              <p>اختر فصلاً من قسمك لعرض جدوله الأسبوعي كاملاً.</p>
             </div>
             {sectionClasses.length > 1 && (
               <select
-                aria-label="اختر الصف لعرض جدوله"
+                aria-label="اختر الفصل لعرض جدوله"
                 className="compact-select"
                 value={selectedClass?.id ?? ''}
                 onChange={(e) => setSelectedClassId(e.target.value)}
@@ -229,7 +229,7 @@ export default function SupervisorPortal({
             <div className="schedule-not-generated">
               <CalendarDays size={42} className="text-muted" />
               <h3>لا يوجد جدول لعرضه بعد</h3>
-              <p>{!selectedClass ? 'لا توجد صفوف مضافة لهذا القسم حالياً.' : 'تستطيع إدارة المدرسة توليد الجدول من لوحتها.'}</p>
+              <p>{!selectedClass ? 'لا توجد فصول مضافة لهذا القسم حالياً.' : 'تستطيع إدارة المدرسة توليد الجدول من لوحتها.'}</p>
             </div>
           ) : (
             <div className="table-scroll"><table className="timetable">
@@ -275,21 +275,21 @@ export default function SupervisorPortal({
             <span><Info size={14} />بصلاحية العرض فقط، لا يمكن تعديل الحصص من هذه البوابة.</span>
             <span className="print-hint"><Printer size={13} />مهيأ للطباعة مباشرة بصيغة A4 بالعرض</span>
           </div>
-          <OfficialPrintFooter role="مشرف الصف" />
+          <OfficialPrintFooter role="مشرف الفصل" />
         </section>
 
         <section className="teacher-details-grid">
           <div className="teacher-detail-card">
-            <h3><GraduationCap size={17} className="text-green" />صفوف القسم</h3>
+            <h3><GraduationCap size={17} className="text-green" />فصول القسم</h3>
             <div className="t-req-list">
               {sectionClasses.length === 0 ? (
-                <p className="muted-text">لا توجد صفوف مضافة لهذا القسم بعد.</p>
+                <p className="muted-text">لا توجد فصول مضافة لهذا القسم بعد.</p>
               ) : (
                 sectionClasses.map(item => {
                   const lessons = data.schedule?.lessons.filter(lesson => lesson.classId === item.id).length ?? 0;
                   return (
                     <div key={item.id} className="t-req-item">
-                      <div><strong>{item.name}</strong><span>رمز الصف: {item.code || 'بدون رمز'}</span></div>
+                      <div><strong>{item.name}</strong><span>رمز الفصل: {item.code || 'بدون رمز'}</span></div>
                       <span className="req-count-badge numeric">{lessons} حصة</span>
                     </div>
                   );
@@ -302,7 +302,7 @@ export default function SupervisorPortal({
             <h3><Users size={17} className="text-muted" />معلمو القسم</h3>
             <div className="t-exc-list">
               {sectionTeacherIds.size === 0 ? (
-                <p className="muted-text">لا يوجد معلمون مسندون لصفوف هذا القسم بعد.</p>
+                <p className="muted-text">لا يوجد معلمون مسندون لفصول هذا القسم بعد.</p>
               ) : (
                 [...sectionTeacherIds].map(id => (
                   <div key={id} className="t-booking-item">
@@ -328,7 +328,7 @@ export default function SupervisorPortal({
               <div className="popup-badge-icon"><BookOpen size={28} /></div>
               <div>
                 <h3>{selectedLesson.subject || 'حصة دراسية'}</h3>
-                <span>الصف الدراسي: <strong>{selectedClass?.name}</strong></span>
+                <span>الفصل الدراسي: <strong>{selectedClass?.name}</strong></span>
               </div>
             </div>
             <div className="popup-facts-list">

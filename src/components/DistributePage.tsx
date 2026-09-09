@@ -42,8 +42,8 @@ type EditAction = 'move' | 'replace' | 'remove';
 
 const scopeLabels: Record<Scope, { label: string; hint: string }> = {
   teacher: { label: 'حسب المعلم', hint: 'وزّع حصص معلم واحد على مدار الأسبوع' },
-  day: { label: 'حسب اليوم', hint: 'املأ حصص يوم دراسي واحد عبر كل الصفوف' },
-  class: { label: 'حسب الصف', hint: 'وزّع حصص صف واحد على مدار الأسبوع' },
+  day: { label: 'حسب اليوم', hint: 'املأ حصص يوم دراسي واحد عبر كل الفصول' },
+  class: { label: 'حسب الفصل', hint: 'وزّع حصص فصل واحد على مدار الأسبوع' },
 };
 
 export default function DistributePage({ data, commit, notify, goTo, loadDemo, onGenerate, generating }: DistributeProps) {
@@ -193,7 +193,7 @@ export default function DistributePage({ data, commit, notify, goTo, loadDemo, o
       if (data.teacherExceptions.some(exc => exc.teacherId === teacher?.id && exc.dayId === dayIdValue && exc.period === period)) return true;
       return false;
     }
-    // في نطاق اليوم: الصف هو العمود واليوم ثابت. في نطاق الصف: الصف ثابت واليوم هو العمود.
+    // في نطاق اليوم: الفصل هو العمود واليوم ثابت. في نطاق الفصل: الفصل ثابت واليوم هو العمود.
     const effectiveClassId = scope === 'day' ? classId : cls?.id ?? '';
     if (data.classExceptions.some(exc => exc.classId === effectiveClassId && exc.dayId === dayIdValue && period >= exc.fromPeriod)) return true;
     return false;
@@ -246,7 +246,7 @@ export default function DistributePage({ data, commit, notify, goTo, loadDemo, o
       )}
 
       {!schedule ? (
-        <Panel title="التوزيع اليدوي للحصص" description="وزّع الحصص بنفسك: اختر معلماً أو يوماً أو صفاً، ثم أسند الحصص واعرف أثر كل تغيير قبل تطبيقه." icon={MousePointerClick}>
+        <Panel title="التوزيع اليدوي للحصص" description="وزّع الحصص بنفسك: اختر معلماً أو يوماً أو فصلاً، ثم أسند الحصص واعرف أثر كل تغيير قبل تطبيقه." icon={MousePointerClick}>
           <EmptyState
             icon={CalendarDays}
             title={ready ? 'ولّد الجدول أولاً ثم وزّع يدوياً' : 'جدولك المنظّم، على بُعد خطوات'}
@@ -270,7 +270,7 @@ export default function DistributePage({ data, commit, notify, goTo, loadDemo, o
                 ))}
               </div>
               <div className="scope-selector">
-                <Field label={scope === 'teacher' ? 'اختر المعلم' : scope === 'day' ? 'اختر اليوم' : 'اختر الصف'}>
+                <Field label={scope === 'teacher' ? 'اختر المعلم' : scope === 'day' ? 'اختر اليوم' : 'اختر الفصل'}>
                   <select value={scope === 'teacher' ? teacher?.id ?? '' : scope === 'day' ? day?.id ?? '' : cls?.id ?? ''} onChange={event => {
                     if (scope === 'teacher') setTeacherId(event.target.value);
                     else if (scope === 'day') setDayId(event.target.value);
@@ -301,7 +301,7 @@ export default function DistributePage({ data, commit, notify, goTo, loadDemo, o
           </Panel>
 
           <div className="distribute-guide">
-            <div className="guide-item"><span className="guide-number">1</span><div><strong>اختر النطاق</strong><p>معلم واحد، أو يوم دراسي، أو صف كامل.</p></div></div>
+            <div className="guide-item"><span className="guide-number">1</span><div><strong>اختر النطاق</strong><p>معلم واحد، أو يوم دراسي، أو فصل كامل.</p></div></div>
             <div className="guide-item"><span className="guide-number">2</span><div><strong>اضغط خلية فارغة</strong><p>اختر المادة والمعلم، واقرأ شرح التغيير قبل التأكيد.</p></div></div>
             <div className="guide-item"><span className="guide-number">3</span><div><strong>عدّل الحصص القائمة</strong><p>نقل أو استبدال أو إزالة، مع فحص فوري للتعارضات.</p></div></div>
           </div>
@@ -317,7 +317,7 @@ export default function DistributePage({ data, commit, notify, goTo, loadDemo, o
                 <h2>
                   {scope === 'teacher' && `حصص المعلم: ${teacher?.name}`}
                   {scope === 'day' && `حصص يوم: ${day?.name}`}
-                  {scope === 'class' && `حصص الصف: ${cls?.name}`}
+                  {scope === 'class' && `حصص الفصل: ${cls?.name}`}
                 </h2>
               </div>
               <span className="board-legend"><MousePointerClick size={14} />اضغط خلية فارغة للإسناد، أو حصة قائمة للتعديل</span>
@@ -350,7 +350,7 @@ export default function DistributePage({ data, commit, notify, goTo, loadDemo, o
                                 onClick={() => openEdit(lesson)}
                                 whileHover={{ y: -2 }}
                                 whileTap={{ scale: 0.98 }}
-                                aria-label={`${lesson.subject || 'حصة'} ${scope === 'day' ? `للصف ${className(lesson.classId)}` : ''} ${teacherName(lesson.teacherId)}، الحصة ${period}. اضغط للتعديل`}
+                                aria-label={`${lesson.subject || 'حصة'} ${scope === 'day' ? `للفصل ${className(lesson.classId)}` : ''} ${teacherName(lesson.teacherId)}، الحصة ${period}. اضغط للتعديل`}
                               >
                                 <strong>{lesson.subject || 'حصة دراسية'}</strong>
                                 <span>{scope === 'day' || scope === 'class' ? teacherName(lesson.teacherId) : className(lesson.classId)}</span>
@@ -377,7 +377,7 @@ export default function DistributePage({ data, commit, notify, goTo, loadDemo, o
                                 className={`distribute-empty ${canAssign ? '' : 'no-credit'}`}
                                 onClick={() => canAssign && openAssign({ classId: cellClassId, dayId: cellDayId, period })}
                                 disabled={!canAssign}
-                                aria-label={`موعد فارغ ${scope === 'day' ? `للصف ${className(col.id)}` : `يوم ${cellDayName}`} الحصة ${period}. اضغط لإسناد حصة`}
+                                aria-label={`موعد فارغ ${scope === 'day' ? `للفصل ${className(col.id)}` : `يوم ${cellDayName}`} الحصة ${period}. اضغط لإسناد حصة`}
                               >
                                 <Plus size={15} />
                                 <span>إسناد</span>
@@ -404,12 +404,12 @@ export default function DistributePage({ data, commit, notify, goTo, loadDemo, o
         open={!!assignTarget}
         onClose={() => setAssignTarget(null)}
         title="إسناد حصة جديدة"
-        description={assignTarget ? `يوم ${days.find(item => item.id === assignTarget.dayId)?.name} - الحصة ${assignTarget.period}${assignTarget.classId ? ` - الصف ${className(assignTarget.classId)}` : ''}` : ''}
+        description={assignTarget ? `يوم ${days.find(item => item.id === assignTarget.dayId)?.name} - الحصة ${assignTarget.period}${assignTarget.classId ? ` - الفصل ${className(assignTarget.classId)}` : ''}` : ''}
       >
         <form onSubmit={applyFromModal} className="modal-body">
-          <p className="modal-copy">اختر الصف والمادة والمعلم لهذا الموعد. سنعرض لك أثر التغيير بالكامل قبل التأكيد.</p>
+          <p className="modal-copy">اختر الفصل والمادة والمعلم لهذا الموعد. سنعرض لك أثر التغيير بالكامل قبل التأكيد.</p>
           {scope === 'teacher' && assignTarget && (
-            <Field label="الصف الدراسي">
+            <Field label="الفصل الدراسي">
               <select
                 value={assignTarget.classId}
                 onChange={event => {
@@ -421,15 +421,15 @@ export default function DistributePage({ data, commit, notify, goTo, loadDemo, o
                   setAssignReqId(first?.requirement.id ?? '');
                 }}
               >
-                <option value="" disabled>اختر الصف الذي سيدرّسه المعلم</option>
+                <option value="" disabled>اختر الفصل الذي سيدرّسه المعلم</option>
                 {data.classes.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
               </select>
             </Field>
           )}
           {assignTarget && !assignTarget.classId ? (
-            <InlineNotice kind="info">اختر الصف أولاً لعرض المواد والأنصبة المتاحة للمعلم في هذا التوقيت.</InlineNotice>
+            <InlineNotice kind="info">اختر الفصل أولاً لعرض المواد والأنصبة المتاحة للمعلم في هذا التوقيت.</InlineNotice>
           ) : assignOptions.length === 0 ? (
-            <InlineNotice kind="warning">لا توجد أنصبة متاحة لهذا الموعد. إما أن نصاب الصف اكتمل، أو أن جميع المعلمين غير متاحين في هذا التوقيت.</InlineNotice>
+            <InlineNotice kind="warning">لا توجد أنصبة متاحة لهذا الموعد. إما أن نصاب الفصل اكتمل، أو أن جميع المعلمين غير متاحين في هذا التوقيت.</InlineNotice>
           ) : (
             <div className="form-grid">
               <Field label={scope === 'teacher' ? 'المادة (النصاب المتبقي)' : 'المادة والمعلم'}>
@@ -498,7 +498,7 @@ export default function DistributePage({ data, commit, notify, goTo, loadDemo, o
                   <div className="form-grid">
                     <Field label="المادة والمعلم البديل">
                       {replaceOptions.length === 0 ? (
-                        <p className="field-hint">لا توجد أنصبة أخرى متبقية لهذا الصف. أضف نصاباً من قسم «نصاب المعلمين» أو وزّع الفائض على أيام أخرى.</p>
+                        <p className="field-hint">لا توجد أنصبة أخرى متبقية لهذا الفصل. أضف نصاباً من قسم «نصاب المعلمين» أو وزّع الفائض على أيام أخرى.</p>
                       ) : (
                         <select value={replaceReqId} onChange={event => setReplaceReqId(event.target.value)}>
                           {replaceOptions.map(option => (

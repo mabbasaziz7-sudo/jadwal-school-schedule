@@ -16,7 +16,7 @@ import SupervisorPortal from './components/SupervisorPortal';
 import NotificationCenter from './components/NotificationCenter';
 import InstallAppButton from './components/InstallAppButton';
 import { Button, IconButton, Modal, type WorkspaceProps } from './components/ui';
-import { loadData, makeDemoData, SESSION_KEY, STORAGE_KEY, type AppData, type TabId, type UserSession } from './lib/data';
+import { ADMIN_PERMISSIONS, loadData, makeDemoData, permissionsWithLevel, SESSION_KEY, STORAGE_KEY, type AppData, type PermissionResource, type TabId, type UserSession } from './lib/data';
 import { generateSchedule } from './lib/scheduler';
 import {
   createNotification,
@@ -33,7 +33,7 @@ const tabs: { id: TabId; label: string; icon: LucideIcon; group: number }[] = [
   { id: 'dashboard', label: 'لوحة المعلومات', icon: Gauge, group: 0 },
   { id: 'days', label: 'أيام الدوام', icon: CalendarDays, group: 0 },
   { id: 'teachers', label: 'المعلمون', icon: Users, group: 0 },
-  { id: 'classes', label: 'الصفوف الدراسية', icon: GraduationCap, group: 0 },
+  { id: 'classes', label: 'الفصول الدراسية', icon: GraduationCap, group: 0 },
   { id: 'requirements', label: 'نصاب المعلمين', icon: ClipboardList, group: 1 },
   { id: 'exceptions', label: 'الاستثناءات', icon: CalendarOff, group: 1 },
   { id: 'limits', label: 'حدود التكرار', icon: Repeat2, group: 1 },
@@ -45,15 +45,15 @@ const tabs: { id: TabId; label: string; icon: LucideIcon; group: number }[] = [
 ];
 
 const pageCopy: Record<TabId, { title: string; description: string }> = {
-  dashboard: { title: 'لوحة المعلومات', description: 'نظرة شاملة على جاهزية الجدول المدرسي وتوزيع الأحمال بين المعلمين والصفوف.' },
+  dashboard: { title: 'لوحة المعلومات', description: 'نظرة شاملة على جاهزية الجدول المدرسي وتوزيع الأحمال بين المعلمين والفصول.' },
   days: { title: 'إعداد الجدول المدرسي', description: 'خطوات بسيطة، وجدول متوازن يناسب مدرستك. لنبدأ بتنظيم أسبوعك.' },
   teachers: { title: 'المعلمون', description: 'لكل معلم وقته. نظّم فريقك التعليمي بما يناسب أيام دوامه.' },
-  classes: { title: 'الصفوف الدراسية', description: 'مساحة منظّمة لكل صف، وأسبوع دراسي أوضح للجميع.' },
-  requirements: { title: 'توزيع نصاب الحصص', description: 'وازن بين احتياجات الصفوف وأنصبة المعلمين، حصةً بحصة.' },
+  classes: { title: 'الفصول الدراسية', description: 'الفصول ضمن كل صف دراسي، ومساحة منظّمة لكل فصل.' },
+  requirements: { title: 'توزيع نصاب الحصص', description: 'وازن بين احتياجات الفصول وأنصبة المعلمين، حصةً بحصة.' },
   exceptions: { title: 'الاستثناءات', description: 'لأن لكل مدرسة تفاصيلها. خصّص الأوقات التي لا يناسبها الدوام.' },
   limits: { title: 'حدود التكرار', description: 'تفاصيل صغيرة تصنع توزيعاً أكثر توازناً لحصص المعلمين.' },
   bookings: { title: 'حجز الحصص', description: 'بعض المواعيد لا تتغير. ثبّتها واترك لنا تنظيم بقية الأسبوع.' },
-  distribute: { title: 'التوزيع اليدوي', description: 'وزّع الحصص بنفسك: اختر معلماً أو يوماً أو صفاً وأسند الحصص مع شرح أثر كل تغيير.' },
+  distribute: { title: 'التوزيع اليدوي', description: 'وزّع الحصص بنفسك: اختر معلماً أو يوماً أو فصلاً وأسند الحصص مع شرح أثر كل تغيير.' },
   schedule: { title: 'الجدول المدرسي', description: 'أسبوعك الدراسي في صورة واحدة. أنشئه، راجعه، وشاركه.' },
   data: { title: 'إدارة البيانات', description: 'عملك محفوظ، وتحت سيطرتك. احتفظ بنسخة أينما احتجت إليها.' },
   settings: { title: 'الإعدادات والصلاحيات', description: 'بيانات المدرسة، وأقسام دراسية يشرف عليها مشرفون بصلاحية العرض فقط.' },
@@ -70,7 +70,7 @@ export default function App() {
       const stored = localStorage.getItem(SESSION_KEY);
       if (stored) {
         const parsed = JSON.parse(stored) as UserSession;
-        if (parsed && (parsed.role === 'admin' || parsed.role === 'teacher' || parsed.role === 'supervisor')) {
+        if (parsed && (parsed.role === 'admin' || parsed.role === 'teacher' || parsed.role === 'supervisor' || parsed.role === 'staff')) {
           return parsed;
         }
       }
@@ -177,6 +177,20 @@ export default function App() {
     return () => { cancelAnimationFrame(frame); document.removeEventListener('keydown', handleKey); previousFocus?.focus(); };
   }, [mobileOpen, helpOpen, confirmation]);
 
+  // A staff account's permissions gate the admin workspace: which tabs are visible, and read/edit access within them.
+  const currentStaff = session?.role === 'staff' ? data.staffAccounts.find(item => item.id === session.staffId) : undefined;
+  const permissions = session?.role === 'staff' ? (currentStaff?.permissions ?? permissionsWithLevel('none')) : ADMIN_PERMISSIONS;
+  const canAccess = (resource: PermissionResource) => permissions[resource] !== 'none';
+  const canEdit = (resource: PermissionResource) => permissions[resource] === 'edit';
+  const visibleTabs = tabs.filter(item => canAccess(item.id));
+
+  useEffect(() => {
+    if (!session || session.role === 'teacher' || session.role === 'supervisor') return;
+    if (session.role === 'staff' && !currentStaff) return; // handled by the "account not found" screen below
+    if (!canAccess(tab)) setTab(visibleTabs[0]?.id ?? 'dashboard');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session, tab, permissions]);
+
   const runGeneration = async (source: AppData = data) => {
     if (generationRunning.current) return;
     generationRunning.current = true;
@@ -209,7 +223,7 @@ export default function App() {
       goTo('schedule');
       void runGeneration(demo);
     };
-    if (data.teachers.length || data.classes.length || data.requirements.length || data.bookings.length) confirm('تحميل المدرسة التجريبية؟', 'سيستبدل المثال بياناتك الحالية بمدرسة تجريبية من 7 معلمين و3 صفوف. يمكنك تصدير نسخة احتياطية أولاً من إدارة البيانات.', applyDemo);
+    if (data.teachers.length || data.classes.length || data.requirements.length || data.bookings.length) confirm('تحميل المدرسة التجريبية؟', 'سيستبدل المثال بياناتك الحالية بمدرسة تجريبية من 7 معلمين و3 فصول. يمكنك تصدير نسخة احتياطية أولاً من إدارة البيانات.', applyDemo);
     else applyDemo();
   };
 
@@ -222,12 +236,19 @@ export default function App() {
     loadDemo,
     onViewTeacher: (teacherId: string) => setSession({ role: 'teacher', teacherId }),
   };
+  const guardedGenerate = () => {
+    if (!canEdit('schedule')) return notify('ليست لديك صلاحية توليد الجدول أو تعديله.', 'error');
+    void runGeneration();
+  };
   const currentStep = tabs.find(item => item.id === tab)!.group;
   const completed = [data.days.some(day => day.enabled) && data.teachers.length > 0 && data.classes.length > 0, data.requirements.length > 0, !!data.schedule];
   const counts: Partial<Record<TabId, number>> = { teachers: data.teachers.length, classes: data.classes.length };
+  // Most pages are pure CRUD forms, so a disabled <fieldset> around the whole page is enough to enforce "view only" —
+  // it disables every nested button/input without touching each page. Schedule/Data/Settings mix in safe view-only
+  // actions (print, export, seeing values) that a blanket disable would wrongly block, so they get a `readOnly` prop instead.
   const page = () => {
     switch (tab) {
-      case 'dashboard': return <DashboardPage {...workspaceProps} onGenerate={() => void runGeneration()} generating={generating} progress={progress} />;
+      case 'dashboard': return <DashboardPage {...workspaceProps} onGenerate={guardedGenerate} generating={generating} progress={progress} />;
       case 'days': return <DaysPage {...workspaceProps} />;
       case 'teachers': return <TeachersPage {...workspaceProps} />;
       case 'classes': return <ClassesPage {...workspaceProps} />;
@@ -235,12 +256,13 @@ export default function App() {
       case 'exceptions': return <ExceptionsPage {...workspaceProps} />;
       case 'limits': return <LimitsPage {...workspaceProps} />;
       case 'bookings': return <BookingsPage {...workspaceProps} />;
-      case 'distribute': return <DistributePage {...workspaceProps} onGenerate={() => void runGeneration()} generating={generating} />;
-      case 'schedule': return <SchedulePage {...workspaceProps} onGenerate={() => void runGeneration()} generating={generating} progress={progress} />;
-      case 'data': return <DataPage {...workspaceProps} />;
-      case 'settings': return <SettingsPage {...workspaceProps} />;
+      case 'distribute': return <DistributePage {...workspaceProps} onGenerate={guardedGenerate} generating={generating} />;
+      case 'schedule': return <SchedulePage {...workspaceProps} onGenerate={guardedGenerate} generating={generating} progress={progress} readOnly={!canEdit('schedule')} />;
+      case 'data': return <DataPage {...workspaceProps} readOnly={!canEdit('data')} />;
+      case 'settings': return <SettingsPage {...workspaceProps} readOnly={!canEdit('settings')} />;
     }
   };
+  const selfManagedReadOnlyTabs: TabId[] = ['schedule', 'data', 'settings'];
 
   // If not logged in, show LoginPage
   if (!session) {
@@ -357,7 +379,21 @@ export default function App() {
     );
   }
 
-  // Admin Workspace
+  // If a staff account was deleted while its holder was still signed in, don't render a workspace with no permissions.
+  if (session.role === 'staff' && !currentStaff) {
+    return (
+      <div className="teacher-empty-screen" dir="rtl">
+        <ShieldCheck size={48} className="text-muted" />
+        <h2>لم يعد هذا الحساب موجوداً</h2>
+        <p>يبدو أن حسابك حُذف أو حُدّث من قبل إدارة المدرسة.</p>
+        <div className="empty-actions">
+          <Button onClick={() => setSession(null)}>تسجيل الخروج</Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Admin Workspace (also used by staff accounts, scoped by their permissions)
   return (
     <MotionConfig reducedMotion="user">
       <div className="app-shell" dir="rtl">
@@ -389,14 +425,14 @@ export default function App() {
           </div>
 
           <nav className="sidebar-nav" aria-label="أقسام إعداد الجدول">
-            {[0, 1, 2].map((group) => (
+            {[0, 1, 2].filter((group) => visibleTabs.some((item) => item.group === group)).map((group) => (
               <div className={`nav-group nav-group-${group}`} key={group}>
                 {group < 2 && (
                   <div className="nav-section-label">
                     {group === 0 ? 'إعداد المدرسة' : 'تخصيص الجدول'}
                   </div>
                 )}
-                {tabs
+                {visibleTabs
                   .filter((item) => item.group === group)
                   .map((item) => (
                     <button
@@ -431,15 +467,15 @@ export default function App() {
               </span>
               <ArrowUpLeft size={15} />
             </button>
-            <button className="school-profile" onClick={() => goTo('settings')}>
+            <button className="school-profile" onClick={() => canAccess('settings') && goTo('settings')}>
               <span className="school-avatar">
                 <Building2 size={21} strokeWidth={1.6} />
               </span>
               <span>
                 <strong>{data.schoolName}</strong>
-                <small>لوحة الإدارة المدرسية</small>
+                <small>{currentStaff ? currentStaff.title : 'لوحة الإدارة المدرسية'}</small>
               </span>
-              <ChevronLeft size={17} />
+              {canAccess('settings') && <ChevronLeft size={17} />}
             </button>
           </div>
         </aside>
@@ -464,7 +500,7 @@ export default function App() {
             <div className="topbar-tools">
               <div className="admin-status-badge">
                 <ShieldCheck size={14} />
-                <span>مسؤول النظام</span>
+                <span>{currentStaff ? currentStaff.title : 'مسؤول النظام'}</span>
               </div>
 
               <InstallAppButton />
@@ -505,7 +541,7 @@ export default function App() {
 
               <span className="topbar-divider" />
 
-              <button className="year-picker" onClick={() => goTo('settings')}>
+              <button className="year-picker" onClick={() => canAccess('settings') && goTo('settings')}>
                 <CalendarDays size={16} strokeWidth={1.6} />
                 <span className="year-caption">العام الدراسي</span>
                 <bdi className="latin">{data.year}</bdi>
@@ -543,7 +579,7 @@ export default function App() {
             {tab !== 'data' && (
               <div className="setup-progress" aria-label="مراحل إعداد الجدول">
                 {[
-                  { title: 'إعداد المدرسة', description: 'الأيام، المعلمون والصفوف', tab: 'days' as const },
+                  { title: 'إعداد المدرسة', description: 'الأيام، المعلمون والفصول', tab: 'days' as const },
                   { title: 'تخصيص الحصص', description: 'الأنصبة، الاستثناءات والقيود', tab: 'requirements' as const },
                   { title: 'إنشاء الجدول', description: 'توليد، مراجعة ومشاركة', tab: 'schedule' as const },
                 ].map((step, index) => (
@@ -578,14 +614,14 @@ export default function App() {
                 exit={{ opacity: 0, y: -5 }}
                 transition={{ duration: 0.19, ease: 'easeOut' }}
               >
-                {page()}
+                {selfManagedReadOnlyTabs.includes(tab) ? page() : <fieldset disabled={!canEdit(tab)}>{page()}</fieldset>}
               </motion.div>
             </AnimatePresence>
 
             <footer className="workspace-footer">
               <span>
                 <ShieldCheck size={13} />
-                لوحة تحكم المسؤول • حفظ محلي مباشر على هذا المتصفح.
+                {currentStaff ? `حساب ${currentStaff.title}` : 'لوحة تحكم المسؤول'} • حفظ محلي مباشر على هذا المتصفح.
               </span>
               <span className={`save-state save-${saveState}`}>
                 {saveState === 'saving' ? (
@@ -618,21 +654,21 @@ export default function App() {
                 <span>01</span>
                 <div>
                   <h3>عرّفنا بمدرستك</h3>
-                  <p>حدّد أيام الدوام وعدد الحصص، ثم أضف المعلمين والصفوف. لكل معلم أيام دوام وحدود يومية يمكنك تخصيصها.</p>
+                  <p>حدّد أيام الدوام وعدد الحصص، ثم أضف المعلمين والفصول. لكل معلم أيام دوام وحدود يومية يمكنك تخصيصها.</p>
                 </div>
               </li>
               <li>
                 <span>02</span>
                 <div>
                   <h3>وزّع الأنصبة وأضف التفاصيل</h3>
-                  <p>أدخل عدد حصص كل معلم في كل صف طوال الأسبوع. أضف الاستثناءات أو التكرار الإلزامي أو الحجوزات الثابتة عند الحاجة.</p>
+                  <p>أدخل عدد حصص كل معلم في كل فصل طوال الأسبوع. أضف الاستثناءات أو التكرار الإلزامي أو الحجوزات الثابتة عند الحاجة.</p>
                 </div>
               </li>
               <li>
                 <span>03</span>
                 <div>
                   <h3>أنشئ جدولك وراجعه</h3>
-                  <p>اضغط «إنشاء الجدول». راجع أي تنبيهات، وبدّل مواعيد الحصص بالضغط عليها. يمكنك عرض جدول الصف أو المعلم وطباعته أو تصديره.</p>
+                  <p>اضغط «إنشاء الجدول». راجع أي تنبيهات، وبدّل مواعيد الحصص بالضغط عليها. يمكنك عرض جدول الفصل أو المعلم وطباعته أو تصديره.</p>
                 </div>
               </li>
             </ol>

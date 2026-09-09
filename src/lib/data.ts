@@ -18,10 +18,18 @@ export interface Teacher {
   days: string[];
 }
 
+/** A grade level (e.g. "العاشر"), grouping several class sections ("الفصول") under one label. */
+export interface Grade {
+  id: string;
+  name: string;
+}
+
 export interface SchoolClass {
   id: string;
   name: string;
   code: string;
+  /** The grade this section belongs to ("" means not yet assigned to a grade). */
+  gradeId: string;
 }
 
 export interface Requirement {
@@ -76,6 +84,29 @@ export interface Supervisor {
   sectionId: string;
 }
 
+/** A group of classes an existing teacher additionally follows up on as "مشرف الجناح" — an extra duty, not a separate account. */
+export interface Wing {
+  id: string;
+  name: string;
+  classIds: string[];
+  teacherId: string;
+}
+
+export type PermissionResource = 'dashboard' | 'days' | 'teachers' | 'classes' | 'requirements' | 'exceptions' | 'limits' | 'bookings' | 'distribute' | 'schedule' | 'data' | 'settings';
+export type PermissionLevel = 'none' | 'view' | 'edit';
+export type PermissionMap = Record<PermissionResource, PermissionLevel>;
+
+/** A staff account (principal, assistant principal, supervisor, department head, specialist, ...) with admin-defined, per-page permissions. */
+export interface StaffAccount {
+  id: string;
+  name: string;
+  /** Free-text job title shown in the UI, e.g. "مدير مدرسة" or "أخصائي اجتماعي". Doesn't itself grant access — permissions do. */
+  title: string;
+  username: string;
+  password: string;
+  permissions: PermissionMap;
+}
+
 export interface Lesson {
   id: string;
   teacherId: string;
@@ -121,13 +152,17 @@ export interface AppData {
   semester: string;
   schoolCode: string;
   showOfficialHeader: boolean;
+  grades: Grade[];
+  wings: Wing[];
+  staffAccounts: StaffAccount[];
 }
 
-export type UserRole = 'admin' | 'teacher' | 'supervisor';
+export type UserRole = 'admin' | 'teacher' | 'supervisor' | 'staff';
 export interface UserSession {
   role: UserRole;
   teacherId?: string;
   supervisorId?: string;
+  staffId?: string;
 }
 
 export const SESSION_KEY = 'jadwal-session-v1';
@@ -137,6 +172,48 @@ export const STORAGE_KEY = 'jadwal-school-v1';
 export const KUWAIT_EDUCATION_ZONES = ['العاصمة', 'حولي', 'الفروانية', 'مبارك الكبير', 'الأحمدي', 'الجهراء'] as const;
 export const SCHOOL_STAGES = ['رياض أطفال', 'ابتدائي', 'متوسط', 'ثانوي'] as const;
 export const SEMESTERS = ['الفصل الدراسي الأول', 'الفصل الدراسي الثاني'] as const;
+
+export const PERMISSION_RESOURCES: { id: PermissionResource; label: string }[] = [
+  { id: 'dashboard', label: 'لوحة المعلومات' },
+  { id: 'days', label: 'أيام الدوام' },
+  { id: 'teachers', label: 'المعلمون' },
+  { id: 'classes', label: 'الفصول الدراسية' },
+  { id: 'requirements', label: 'نصاب المعلمين' },
+  { id: 'exceptions', label: 'الاستثناءات' },
+  { id: 'limits', label: 'حدود التكرار' },
+  { id: 'bookings', label: 'حجز الحصص' },
+  { id: 'distribute', label: 'التوزيع اليدوي' },
+  { id: 'schedule', label: 'الجدول المدرسي' },
+  { id: 'data', label: 'إدارة البيانات' },
+  { id: 'settings', label: 'الإعدادات والصلاحيات' },
+];
+
+export function permissionsWithLevel(level: PermissionLevel): PermissionMap {
+  return Object.fromEntries(PERMISSION_RESOURCES.map(resource => [resource.id, level])) as PermissionMap;
+}
+
+export const ADMIN_PERMISSIONS: PermissionMap = permissionsWithLevel('edit');
+
+/** Starting points the admin can pick when creating a staff account, then fine-tune freely. */
+export const STAFF_TITLE_PRESETS: { title: string; permissions: PermissionMap }[] = [
+  { title: 'مدير مدرسة', permissions: permissionsWithLevel('edit') },
+  {
+    title: 'مدير مساعد',
+    permissions: { ...permissionsWithLevel('view'), teachers: 'edit', classes: 'edit', requirements: 'edit', exceptions: 'edit', limits: 'edit', bookings: 'edit', distribute: 'edit', schedule: 'edit' },
+  },
+  {
+    title: 'مشرف',
+    permissions: { ...permissionsWithLevel('view'), distribute: 'none', data: 'none', settings: 'none' },
+  },
+  {
+    title: 'رئيس قسم',
+    permissions: { ...permissionsWithLevel('view'), requirements: 'edit', exceptions: 'edit', limits: 'edit', data: 'none', settings: 'none' },
+  },
+  {
+    title: 'أخصائي',
+    permissions: { ...permissionsWithLevel('none'), dashboard: 'view', teachers: 'view', classes: 'view', schedule: 'view' },
+  },
+];
 
 export const defaultDays: SchoolDay[] = [
   { id: 'sun', name: 'الأحد', short: 'أحد', enabled: true, periods: 7 },
@@ -184,6 +261,9 @@ export function createDefaultData(): AppData {
     semester: SEMESTERS[0],
     schoolCode: '',
     showOfficialHeader: true,
+    grades: [],
+    wings: [],
+    staffAccounts: [],
   };
 }
 
@@ -211,7 +291,8 @@ export function makeDemoData(): AppData {
     id: `teacher-${index + 1}`, name, code: `T0${index + 1}`, minDaily: 1, maxDaily: 5, maxConsecutive: 3,
     days: data.days.filter(day => day.enabled).map(day => day.id),
   }));
-  data.classes = ['الأول متوسط - أ', 'الثاني متوسط - أ', 'الثالث متوسط - أ'].map((name, index) => ({ id: `class-${index + 1}`, name, code: `C0${index + 1}` }));
+  data.grades = ['الأول متوسط', 'الثاني متوسط', 'الثالث متوسط'].map((name, index) => ({ id: `grade-${index + 1}`, name }));
+  data.classes = ['الأول متوسط - أ', 'الثاني متوسط - أ', 'الثالث متوسط - أ'].map((name, index) => ({ id: `class-${index + 1}`, name, code: `C0${index + 1}`, gradeId: `grade-${index + 1}` }));
   data.requirements = data.classes.flatMap(schoolClass => data.teachers.map((teacher, index) => ({
     id: `req-${schoolClass.id}-${teacher.id}`, teacherId: teacher.id, classId: schoolClass.id, subject: subjects[index], count: 5,
   })));
@@ -230,8 +311,14 @@ function isNumber(value: unknown, min = 0, max = 84): value is number {
   return typeof value === 'number' && Number.isInteger(value) && value >= min && value <= max;
 }
 
+function isValidPermissionMap(value: unknown): value is PermissionMap {
+  if (!isRecord(value)) return false;
+  return PERMISSION_RESOURCES.every(resource => value[resource.id] === 'none' || value[resource.id] === 'view' || value[resource.id] === 'edit');
+}
+
 export function parseBackup(raw: string): AppData {
   const value: unknown = JSON.parse(raw);
+  const rawValue = value as Record<string, unknown>;
   const error = new Error('الملف غير متوافق. اختر نسخة JSON تم تصديرها من تطبيق جَدوَل.');
   if (!isRecord(value) || value.version !== 1 || !isText(value.schoolName) || !isText(value.year)) throw error;
   const collections = ['days', 'teachers', 'classes', 'requirements', 'teacherExceptions', 'classExceptions', 'limits', 'bookings'] as const;
@@ -266,13 +353,39 @@ export function parseBackup(raw: string): AppData {
       .map(item => ({ id: item.id as string, name: item.name as string, classIds: [...new Set(item.classIds as string[])] }))
     : [];
   const sectionIds = new Set(sections.map(section => section.id));
-  const rawSupervisors = (value as Record<string, unknown>).supervisors;
+  const rawSupervisors = rawValue.supervisors;
   const supervisors = Array.isArray(rawSupervisors) && rawSupervisors.length <= 100 && rawSupervisors.every(isRecord)
     ? (rawSupervisors as Record<string, unknown>[]).filter(item =>
         isText(item.id) && item.id && isText(item.name) && item.name.toString().trim() && sectionIds.has(item.sectionId as string))
       .map(item => ({ id: item.id as string, name: item.name as string, sectionId: item.sectionId as string }))
     : [];
-  const rawValue = value as Record<string, unknown>;
+  const rawGrades = rawValue.grades;
+  const grades = Array.isArray(rawGrades) && rawGrades.length <= 60 && rawGrades.every(isRecord)
+    ? (rawGrades as Record<string, unknown>[]).filter(item => isText(item.id) && item.id && isText(item.name) && item.name.toString().trim())
+      .map(item => ({ id: item.id as string, name: item.name as string }))
+    : [];
+  const gradeIds = new Set(grades.map(grade => grade.id));
+  const classesWithGrade = data.classes.map(schoolClass => ({ ...schoolClass, gradeId: gradeIds.has(schoolClass.gradeId) ? schoolClass.gradeId : '' }));
+  const rawWings = rawValue.wings;
+  const wings = Array.isArray(rawWings) && rawWings.length <= 100 && rawWings.every(isRecord)
+    ? (rawWings as Record<string, unknown>[]).filter(item =>
+        isText(item.id) && item.id && isText(item.name) && item.name.toString().trim() && teacherIds.has(item.teacherId as string) &&
+        Array.isArray(item.classIds) && item.classIds.every(id => classIds.has(id)))
+      .map(item => ({ id: item.id as string, name: item.name as string, teacherId: item.teacherId as string, classIds: [...new Set(item.classIds as string[])] }))
+    : [];
+  const rawStaff = rawValue.staffAccounts;
+  const staffUsernames = new Set<string>();
+  const staffAccounts = Array.isArray(rawStaff) && rawStaff.length <= 200 && rawStaff.every(isRecord)
+    ? (rawStaff as Record<string, unknown>[]).filter(item => {
+        if (!isText(item.id) || !item.id || !isText(item.name) || !item.name.toString().trim() || !isText(item.title, 60) ||
+          !isText(item.username, 60) || !item.username.toString().trim() || !isText(item.password, 100) || !isValidPermissionMap(item.permissions)) return false;
+        const username = (item.username as string).toLowerCase();
+        if (username === 'admin' || staffUsernames.has(username)) return false;
+        staffUsernames.add(username);
+        return true;
+      })
+      .map(item => ({ id: item.id as string, name: item.name as string, title: item.title as string, username: item.username as string, password: item.password as string, permissions: item.permissions as PermissionMap }))
+    : [];
   const optionalText = (field: string, max = 60) => isText(rawValue[field], max) ? (rawValue[field] as string) : '';
   // Rebuild derived schedules rather than trusting imported, potentially stale assignments.
   return {
@@ -281,7 +394,7 @@ export function parseBackup(raw: string): AppData {
     year: data.year,
     days: defaultDays.map(day => ({ ...day, enabled: data.days.find(item => item.id === day.id)!.enabled, periods: data.days.find(item => item.id === day.id)!.periods })),
     teachers: data.teachers,
-    classes: data.classes,
+    classes: classesWithGrade,
     requirements: data.requirements,
     teacherExceptions: data.teacherExceptions,
     classExceptions: data.classExceptions,
@@ -297,6 +410,9 @@ export function parseBackup(raw: string): AppData {
     semester: optionalText('semester') || SEMESTERS[0],
     schoolCode: optionalText('schoolCode', 30),
     showOfficialHeader: typeof rawValue.showOfficialHeader === 'boolean' ? rawValue.showOfficialHeader : true,
+    grades,
+    wings,
+    staffAccounts,
   };
 }
 

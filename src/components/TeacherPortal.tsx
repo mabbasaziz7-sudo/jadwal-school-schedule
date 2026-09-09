@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   CalendarDays,
@@ -16,7 +16,8 @@ import {
   CalendarOff,
   Coffee,
   BookOpen,
-  ChevronDown
+  ChevronDown,
+  Wind
 } from 'lucide-react';
 import { csvCell, downloadFile, type AppData, type Lesson } from '../lib/data';
 import type { AppNotification, NotificationKind } from '../lib/notifications';
@@ -95,8 +96,20 @@ export default function TeacherPortal({
   const freePeriods = Math.max(0, totalSlots - totalAssigned);
 
   // Helper names
-  const getClassName = (classId: string) => data.classes.find(c => c.id === classId)?.name || 'صف غير محدد';
+  const getClassName = (classId: string) => data.classes.find(c => c.id === classId)?.name || 'فصل غير محدد';
   const getDayName = (dayId: string) => data.days.find(d => d.id === dayId)?.name || dayId;
+  const wingTeacherName = (id: string) => data.teachers.find(item => item.id === id)?.name || 'معلم غير محدد';
+
+  // "مشرف الجناح": an extra duty some teachers hold — following up on a group of classes' schedules.
+  const supervisedWings = useMemo(() => data.wings.filter(w => w.teacherId === teacher?.id), [data.wings, teacher]);
+  const [wingId, setWingId] = useState(supervisedWings[0]?.id ?? '');
+  useEffect(() => { if (!supervisedWings.some(w => w.id === wingId)) setWingId(supervisedWings[0]?.id ?? ''); }, [supervisedWings, wingId]);
+  const activeWing = supervisedWings.find(w => w.id === wingId);
+  const wingClassOptions = useMemo(() => activeWing ? data.classes.filter(c => activeWing.classIds.includes(c.id)) : [], [activeWing, data.classes]);
+  const [wingClassId, setWingClassId] = useState(wingClassOptions[0]?.id ?? '');
+  useEffect(() => { if (!wingClassOptions.some(c => c.id === wingClassId)) setWingClassId(wingClassOptions[0]?.id ?? ''); }, [wingClassOptions, wingClassId]);
+  const wingClass = wingClassOptions.find(c => c.id === wingClassId);
+  const wingLessons = useMemo(() => (data.schedule && wingClass ? data.schedule.lessons.filter(l => l.classId === wingClass.id) : []), [data.schedule, wingClass]);
 
   // Print schedule
   const handlePrint = () => {
@@ -106,7 +119,7 @@ export default function TeacherPortal({
   // Export CSV for this teacher
   const handleExportCsv = () => {
     if (!teacher) return;
-    const header = ['المدرسة', 'العام الدراسي', 'اسم المعلم', 'اليوم', 'الحصة', 'الصف', 'المادة', 'حصة محجوزة'];
+    const header = ['المدرسة', 'العام الدراسي', 'اسم المعلم', 'اليوم', 'الحصة', 'الفصل', 'المادة', 'حصة محجوزة'];
     const rows = days.flatMap(day => {
       return teacherLessons
         .filter(l => l.dayId === day.id)
@@ -357,7 +370,7 @@ export default function TeacherPortal({
           <div className="panel-header-row">
             <div>
               <h2>جدول الحصص الأسبوعي</h2>
-              <p>اضغط على أي حصة لاستعراض تفاصيل الصف والمادة ورقم الحصة.</p>
+              <p>اضغط على أي حصة لاستعراض تفاصيل الفصل والمادة ورقم الحصة.</p>
             </div>
             <div className="legend-pills">
               <span className="legend-item"><span className="legend-box box-assigned" />حصة دراسية</span>
@@ -371,7 +384,7 @@ export default function TeacherPortal({
             <div className="schedule-not-generated">
               <CalendarDays size={42} className="text-muted" />
               <h3>لم يتم اعتماد وتوليد الجدول بعد</h3>
-              <p>تستطيع إدارة المدرسة تنفيذ الجدول بضغطة زر وتوزيعه آلياً لجميع المعلمين والصفوف.</p>
+              <p>تستطيع إدارة المدرسة تنفيذ الجدول بضغطة زر وتوزيعه آلياً لجميع المعلمين والفصول.</p>
               <Button icon={Shield} onClick={onGoToAdmin}>
                 الانتقال للوحة الإدارة لتوليد الجدول
               </Button>
@@ -451,7 +464,7 @@ export default function TeacherPortal({
                                 type="button"
                                 className="teacher-lesson-card"
                                 onClick={() => setSelectedLesson(lesson)}
-                                aria-label={`حصة ${lesson.subject || 'دراسة'}، صف ${getClassName(lesson.classId)}، يوم ${day.name}، الحصة ${period}`}
+                                aria-label={`حصة ${lesson.subject || 'دراسة'}، فصل ${getClassName(lesson.classId)}، يوم ${day.name}، الحصة ${period}`}
                               >
                                 <span className="lesson-class-tag">
                                   {getClassName(lesson.classId)}
@@ -498,6 +511,55 @@ export default function TeacherPortal({
           </div>
           <OfficialPrintFooter role="المعلم" />
         </section>
+
+        {/* Wing supervision — an extra duty on top of this teacher's own schedule */}
+        {supervisedWings.length > 0 && (
+          <section className="teacher-schedule-panel wing-panel">
+            <div className="panel-header-row">
+              <div>
+                <h2><Wind size={18} className="text-green" /> الأجنحة التي تتابعها</h2>
+                <p>بصفتك مشرف جناح، تستطيع متابعة جدول فصول الجناح المُسند إليك.</p>
+              </div>
+              <div className="wing-panel-selects">
+                {supervisedWings.length > 1 && (
+                  <select aria-label="اختر الجناح" value={wingId} onChange={e => setWingId(e.target.value)} className="compact-select">
+                    {supervisedWings.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+                  </select>
+                )}
+                {wingClassOptions.length > 1 && (
+                  <select aria-label="اختر الفصل" value={wingClassId} onChange={e => setWingClassId(e.target.value)} className="compact-select">
+                    {wingClassOptions.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                )}
+              </div>
+            </div>
+
+            {!data.schedule || !wingClass ? (
+              <div className="schedule-not-generated">
+                <CalendarDays size={36} className="text-muted" />
+                <h3>لا يوجد جدول لعرضه بعد</h3>
+                <p>سيظهر هنا جدول فصول جناحك بمجرد اعتماد الجدول من إدارة المدرسة.</p>
+              </div>
+            ) : (
+              <div className="teacher-table-scroll"><table className="teacher-timetable">
+                <thead><tr><th className="period-col-header">الحصة</th>{days.map(day => <th key={day.id}>{day.name}</th>)}</tr></thead>
+                <tbody>
+                  {Array.from({ length: maxPeriods }, (_, index) => index + 1).map(period => (
+                    <tr key={period}>
+                      <th className="period-row-header"><span className="period-badge">{period}</span></th>
+                      {days.map(day => {
+                        const lesson = wingLessons.find(l => l.dayId === day.id && l.period === period);
+                        if (period > day.periods) return <td key={day.id} className="td-inactive"><span className="muted-dash">-</span></td>;
+                        if (!lesson) return <td key={day.id} className="td-free"><div className="free-period-card"><Coffee size={12} /><span>فراغ</span></div></td>;
+                        return <td key={day.id} className="td-lesson"><div className="teacher-lesson-card"><span className="lesson-class-tag">{wingTeacherName(lesson.teacherId)}</span><strong className="lesson-subject-tag">{lesson.subject || 'حصة دراسية'}</strong></div></td>;
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table></div>
+            )}
+          </section>
+        )}
 
         {/* Teacher Constraints & Notes */}
         <section className="teacher-details-grid">
@@ -576,7 +638,7 @@ export default function TeacherPortal({
               </div>
               <div>
                 <h3>{selectedLesson.subject || 'حصة دراسية'}</h3>
-                <span>الصف الدراسي: <strong>{getClassName(selectedLesson.classId)}</strong></span>
+                <span>الفصل الدراسي: <strong>{getClassName(selectedLesson.classId)}</strong></span>
               </div>
             </div>
 

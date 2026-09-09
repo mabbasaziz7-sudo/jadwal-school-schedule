@@ -30,6 +30,7 @@ export default function LoginPage({ data, onLogin, loadDemo, notify }: LoginPage
   const [role, setRole] = useState<'admin' | 'teacher' | 'supervisor'>('teacher');
   const [selectedTeacherId, setSelectedTeacherId] = useState(data.teachers[0]?.id ?? '');
   const [selectedSupervisorId, setSelectedSupervisorId] = useState(data.supervisors[0]?.id ?? '');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
@@ -44,11 +45,22 @@ export default function LoginPage({ data, onLogin, loadDemo, notify }: LoginPage
   const handleAdminSubmit = (e: FormEvent) => {
     e.preventDefault();
     setError('');
-    if (password.trim() === adminPass) {
-      notify(`مرحباً بك في لوحة الإدارة لمدرسة ${data.schoolName}`, 'success');
-      onLogin({ role: 'admin' });
+    const enteredUsername = username.trim().toLowerCase();
+    if (!enteredUsername || enteredUsername === 'admin') {
+      if (password.trim() === adminPass) {
+        notify(`مرحباً بك في لوحة الإدارة لمدرسة ${data.schoolName}`, 'success');
+        onLogin({ role: 'admin' });
+      } else {
+        setError('كلمة المرور غير صحيحة. كلمة المرور الافتراضية هي admin');
+      }
+      return;
+    }
+    const staff = data.staffAccounts.find(item => item.username.toLowerCase() === enteredUsername);
+    if (staff && staff.password === password) {
+      notify(`مرحباً بك ${staff.name}`, 'success');
+      onLogin({ role: 'staff', staffId: staff.id });
     } else {
-      setError('كلمة المرور غير صحيحة. كلمة المرور الافتراضية هي admin');
+      setError('اسم المستخدم أو كلمة المرور غير صحيحة.');
     }
   };
 
@@ -138,8 +150,8 @@ export default function LoginPage({ data, onLogin, loadDemo, notify }: LoginPage
               onClick={() => { setRole('admin'); setError(''); }}
             >
               <ShieldCheck size={18} />
-              <span>إدارة المدرسة</span>
-              <small>إعداد وتنفيذ الجدول</small>
+              <span>الإدارة والموظفون</span>
+              <small>المسؤول أو حساب موظف</small>
             </button>
           </div>
 
@@ -216,7 +228,7 @@ export default function LoginPage({ data, onLogin, loadDemo, notify }: LoginPage
                   <div className="login-empty-teachers">
                     <GraduationCap size={36} className="text-muted" />
                     <h3>لا توجد بيانات معلمين مسجلة بعد</h3>
-                    <p>قم بالدخول كمسؤول لإضافة المعلمين والصفوف أو تجربة المدرسة التجريبية الجاهزة.</p>
+                    <p>قم بالدخول كمسؤول لإضافة المعلمين والفصول أو تجربة المدرسة التجريبية الجاهزة.</p>
                     <div className="login-empty-actions">
                       <Button variant="secondary" icon={Sparkles} onClick={loadDemo}>
                         تحميل مدرسة تجريبية جاهزة
@@ -273,8 +285,8 @@ export default function LoginPage({ data, onLogin, loadDemo, notify }: LoginPage
                         </div>
                         <div className="t-preview-stats">
                           <div>
-                            <span>عدد الصفوف:</span>
-                            <strong className="numeric">{currentSupervisorSection?.classIds.length ?? 0} صف</strong>
+                            <span>عدد الفصول:</span>
+                            <strong className="numeric">{currentSupervisorSection?.classIds.length ?? 0} فصل</strong>
                           </div>
                         </div>
                       </div>
@@ -307,14 +319,27 @@ export default function LoginPage({ data, onLogin, loadDemo, notify }: LoginPage
               >
                 <div className="login-intro">
                   <h2>لوحة إدارة وتنفيذ الجدول</h2>
-                  <p>سجّل دخولك كمسؤول لإعداد أيام الدوام، إسناد الأنصبة، وضبط القيود، وتوليد الجداول وتصديرها.</p>
+                  <p>سجّل دخولك كمسؤول، أو بحساب موظف (مدير مساعد، مشرف، رئيس قسم...) بصلاحياته الخاصة.</p>
                 </div>
 
                 <form onSubmit={handleAdminSubmit} className="login-form">
                   <label className="login-field">
                     <span className="login-field-label">
+                      <UserCheck size={16} />
+                      اسم المستخدم
+                    </span>
+                    <input
+                      value={username}
+                      onChange={(e) => { setUsername(e.target.value); setError(''); }}
+                      placeholder="اتركه فارغاً لتسجيل الدخول كمسؤول"
+                      className="login-input"
+                      autoFocus
+                    />
+                  </label>
+                  <label className="login-field">
+                    <span className="login-field-label">
                       <Lock size={16} />
-                      كلمة مرور المسؤول
+                      كلمة المرور
                     </span>
                     <div className="password-input-wrap">
                       <input
@@ -323,7 +348,6 @@ export default function LoginPage({ data, onLogin, loadDemo, notify }: LoginPage
                         onChange={(e) => { setPassword(e.target.value); setError(''); }}
                         placeholder="أدخل كلمة المرور..."
                         className="login-input"
-                        autoFocus
                         required
                       />
                       <button
@@ -346,13 +370,13 @@ export default function LoginPage({ data, onLogin, loadDemo, notify }: LoginPage
                   <div className="admin-password-hint">
                     <KeyRound size={15} />
                     <span>
-                      كلمة المرور الافتراضية: <code>admin</code> (يمكن تغييرها من إعدادات المدرسة).
+                      اترك اسم المستخدم فارغاً لتسجيل الدخول كمسؤول (كلمة المرور الافتراضية: <code>admin</code>)، أو أدخل بيانات حساب موظف أنشأه المسؤول.
                     </span>
                   </div>
 
                   <div className="login-actions-group">
                     <Button type="submit" icon={LogIn} className="login-submit-btn">
-                      تسجيل الدخول كمسؤول
+                      تسجيل الدخول
                     </Button>
                     <Button
                       type="button"

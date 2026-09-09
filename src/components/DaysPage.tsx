@@ -13,7 +13,7 @@ export default function DaysPage({ data, commit, goTo, notify, confirm }: Worksp
     next[index] = value;
     return { periodTimes: next };
   });
-  const reset = () => confirm('استعادة أيام الدوام الافتراضية؟', 'سيصبح الدوام من الأحد إلى الخميس، بواقع 7 حصص يومياً. ستبقى بيانات المعلمين والصفوف محفوظة، ويلزم إعادة توليد الجدول.', () => {
+  const reset = () => confirm('استعادة أيام الدوام الافتراضية؟', 'سيصبح الدوام من الأحد إلى الخميس، بواقع 7 حصص يومياً. ستبقى بيانات المعلمين والفصول محفوظة، ويلزم إعادة توليد الجدول.', () => {
     commit({ days: defaultDays.map(day => ({ ...day })) });
     notify('تمت استعادة إعدادات الأسبوع الافتراضية.');
   });
@@ -39,7 +39,7 @@ export default function DaysPage({ data, commit, goTo, notify, confirm }: Worksp
             <span>{day.short}</span>
           </div>)}</div>
           <div className="week-facts"><div><span>أيام الدوام</span><strong>{activeDays.length} <span>أيام</span></strong></div><div><span>أيام العطلة</span><strong>{7 - activeDays.length} <span>أيام</span></strong></div></div>
-          <div className="summary-tip"><Info size={16} /><p>تُطبّق هذه الإعدادات على جميع الصفوف. يمكنك تخصيص الحالات الخاصة من <button onClick={() => goTo('exceptions')}>الاستثناءات</button>.</p></div>
+          <div className="summary-tip"><Info size={16} /><p>تُطبّق هذه الإعدادات على جميع الفصول. يمكنك تخصيص الحالات الخاصة من <button onClick={() => goTo('exceptions')}>الاستثناءات</button>.</p></div>
         </aside>
       </div>
       <NextFooter label="التالي: المعلمون" onNext={() => goTo('teachers')} disabled={!activeDays.length} note={activeDays.length ? 'تُحفظ تغييراتك تلقائياً على هذا الجهاز' : 'فعّل يوماً دراسياً واحداً على الأقل للمتابعة'} />

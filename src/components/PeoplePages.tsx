@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
-import { ArrowLeft, BookOpen, Eye, GraduationCap, Pencil, Plus, Search, Trash2, Users } from 'lucide-react';
-import { classCapacity, uid, type SchoolClass, type Teacher } from '../lib/data';
+import { ArrowLeft, BookOpen, Eye, GraduationCap, Layers, Pencil, Plus, Search, Trash2, Users } from 'lucide-react';
+import { classCapacity, uid, type Grade, type SchoolClass, type Teacher } from '../lib/data';
 import { Button, DayCheckboxes, EmptyState, Field, IconButton, NextFooter, Panel, type WorkspaceProps } from './ui';
 
 export function TeachersPage({ data, commit, notify, goTo, confirm, onViewTeacher }: WorkspaceProps) {
@@ -53,41 +53,89 @@ export function TeachersPage({ data, commit, notify, goTo, confirm, onViewTeache
 }
 
 export function ClassesPage({ data, commit, notify, goTo, confirm }: WorkspaceProps) {
-  const [form, setForm] = useState<SchoolClass>({ id: '', name: '', code: '' });
+  // --- Grades (الصفوف الدراسية) — e.g. "العاشر"، تحتوي عدة فصول ---
+  const blankGrade = (): Grade => ({ id: '', name: '' });
+  const [gradeForm, setGradeForm] = useState<Grade>(blankGrade);
+  const submitGrade = (event: FormEvent) => {
+    event.preventDefault();
+    if (!gradeForm.name.trim()) return notify('أدخل اسم الصف الدراسي.', 'error');
+    if (data.grades.some(item => item.id !== gradeForm.id && item.name === gradeForm.name.trim())) return notify('اسم الصف الدراسي مستخدم بالفعل.', 'error');
+    const id = gradeForm.id || uid();
+    const grade: Grade = { id, name: gradeForm.name.trim() };
+    commit({ grades: gradeForm.id ? data.grades.map(item => item.id === gradeForm.id ? grade : item) : [...data.grades, grade] });
+    notify(gradeForm.id ? 'تم تحديث الصف الدراسي.' : 'تمت إضافة الصف الدراسي بنجاح.');
+    setGradeForm(blankGrade());
+  };
+  const removeGrade = (grade: Grade) => {
+    const affected = data.classes.filter(item => item.gradeId === grade.id).length;
+    confirm(`حذف الصف الدراسي ${grade.name}؟`, affected ? `سيصبح ${affected} فصلاً دراسياً بلا تصنيف صف، ويمكنك إسنادها لصف آخر لاحقاً.` : 'لا توجد فصول مرتبطة بهذا الصف حالياً.', () => {
+      commit({ grades: data.grades.filter(item => item.id !== grade.id), classes: data.classes.map(item => item.gradeId === grade.id ? { ...item, gradeId: '' } : item) });
+      if (gradeForm.id === grade.id) setGradeForm(blankGrade());
+      notify('تم حذف الصف الدراسي.');
+    }, true);
+  };
+
+  // --- Class sections (الفصول الدراسية) — e.g. "العاشر - 1" ---
+  const blankClass = (): SchoolClass => ({ id: '', name: '', code: '', gradeId: data.grades[0]?.id ?? '' });
+  const [form, setForm] = useState<SchoolClass>(blankClass);
   const [search, setSearch] = useState('');
-  const reset = () => setForm({ id: '', name: '', code: '' });
+  const reset = () => setForm(blankClass());
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    if (!form.name.trim()) return notify('أدخل اسم الصف.', 'error');
-    if (data.classes.some(item => item.id !== form.id && (item.name === form.name.trim() || (form.code.trim() && item.code.toLowerCase() === form.code.trim().toLowerCase())))) return notify('اسم الصف أو رمزه مستخدم بالفعل.', 'error');
-    if (!form.id && data.classes.length >= 40) return notify('الحد المدعوم هو 40 صفاً.', 'error');
+    if (!form.name.trim()) return notify('أدخل اسم الفصل.', 'error');
+    if (data.classes.some(item => item.id !== form.id && (item.name === form.name.trim() || (form.code.trim() && item.code.toLowerCase() === form.code.trim().toLowerCase())))) return notify('اسم الفصل أو رمزه مستخدم بالفعل.', 'error');
+    if (!form.id && data.classes.length >= 40) return notify('الحد المدعوم هو 40 فصلاً.', 'error');
     const id = form.id || uid();
     const schoolClass = { ...form, id, name: form.name.trim(), code: form.code.trim() || `C-${id.slice(0, 5).toUpperCase()}` };
     commit({ classes: form.id ? data.classes.map(item => item.id === form.id ? schoolClass : item) : [...data.classes, schoolClass] });
-    notify(form.id ? 'تم تحديث بيانات الصف.' : 'تمت إضافة الصف بنجاح.');
+    notify(form.id ? 'تم تحديث بيانات الفصل.' : 'تمت إضافة الفصل بنجاح.');
     reset();
   };
-  const remove = (schoolClass: SchoolClass) => confirm(`حذف الصف ${schoolClass.name}؟`, 'ستُحذف أيضاً أنصبة الحصص والاستثناءات والحجوزات المرتبطة بهذا الصف، وتُزال من أي قسم يضمّها.', () => {
+  const remove = (schoolClass: SchoolClass) => confirm(`حذف الفصل ${schoolClass.name}؟`, 'ستُحذف أيضاً أنصبة الحصص والاستثناءات والحجوزات المرتبطة بهذا الفصل، وتُزال من أي قسم أو جناح يضمّه.', () => {
     commit({
       classes: data.classes.filter(item => item.id !== schoolClass.id),
       requirements: data.requirements.filter(item => item.classId !== schoolClass.id),
       classExceptions: data.classExceptions.filter(item => item.classId !== schoolClass.id),
       bookings: data.bookings.filter(item => item.classId !== schoolClass.id),
       sections: data.sections.map(section => ({ ...section, classIds: section.classIds.filter(id => id !== schoolClass.id) })),
+      wings: data.wings.map(wing => ({ ...wing, classIds: wing.classIds.filter(id => id !== schoolClass.id) })),
     });
     if (form.id === schoolClass.id) reset();
-    notify('تم حذف الصف والبيانات المرتبطة به.');
+    notify('تم حذف الفصل والبيانات المرتبطة به.');
   }, true);
-  const filtered = data.classes.filter(item => `${item.name} ${item.code}`.toLowerCase().includes(search.toLowerCase()));
+  const gradeName = (gradeId: string) => data.grades.find(item => item.id === gradeId)?.name || 'بلا تصنيف';
+  const filtered = data.classes.filter(item => `${item.name} ${item.code} ${gradeName(item.gradeId)}`.toLowerCase().includes(search.toLowerCase()));
+
   return <div className="page-stack">
-    <Panel title={form.id ? 'تعديل بيانات الصف' : 'إضافة صف دراسي'} description="أضف الصفوف والشُعب التي ترغب في تنظيم جداولها." icon={GraduationCap} id="class-form">
-      <form className="panel-form" onSubmit={submit}><div className="form-grid two-columns"><Field label="اسم الصف"><input required maxLength={80} placeholder="مثال: الأول متوسط - أ" value={form.name} onChange={event => setForm({ ...form, name: event.target.value })} /></Field><Field label="رمز الصف" optional><input maxLength={20} placeholder="مثال: C01" value={form.code} onChange={event => setForm({ ...form, code: event.target.value })} /></Field></div><div className="form-actions"><Button type="submit" icon={form.id ? Pencil : Plus}>{form.id ? 'حفظ التعديلات' : 'إضافة الصف'}</Button>{form.id && <Button variant="ghost" onClick={reset}>إلغاء التعديل</Button>}</div></form>
+    <Panel title={gradeForm.id ? 'تعديل الصف الدراسي' : 'إضافة صف دراسي'} description="مثال: العاشر، الحادي عشر، الثاني عشر. أضف كل صف مرة واحدة، ثم أضف فصوله (شُعبه) أدناه." icon={Layers} id="grade-form">
+      <form className="panel-form" onSubmit={submitGrade}>
+        <div className="form-grid two-columns">
+          <Field label="اسم الصف الدراسي"><input required maxLength={40} placeholder="مثال: العاشر" value={gradeForm.name} onChange={event => setGradeForm({ ...gradeForm, name: event.target.value })} /></Field>
+        </div>
+        <div className="form-actions"><Button type="submit" icon={gradeForm.id ? Pencil : Plus}>{gradeForm.id ? 'حفظ التعديلات' : 'إضافة الصف الدراسي'}</Button>{gradeForm.id && <Button variant="ghost" onClick={() => setGradeForm(blankGrade())}>إلغاء التعديل</Button>}</div>
+      </form>
+      {data.grades.length > 0 && <div className="grade-chip-list">{data.grades.map(grade => (
+        <span className="grade-chip" key={grade.id}>
+          {grade.name}
+          <small>{data.classes.filter(item => item.gradeId === grade.id).length} فصل</small>
+          <button type="button" onClick={() => setGradeForm(grade)} aria-label={`تعديل ${grade.name}`}><Pencil size={11} /></button>
+          <button type="button" onClick={() => removeGrade(grade)} aria-label={`حذف ${grade.name}`}><Trash2 size={11} /></button>
+        </span>
+      ))}</div>}
     </Panel>
-    <Panel title="الصفوف الدراسية" description={`${data.classes.length} صف في مدرستك`} action={data.classes.length > 0 && <div className="search-input"><Search size={16} /><input placeholder="ابحث عن صف..." aria-label="البحث عن صف" value={search} onChange={event => setSearch(event.target.value)} /></div>}>
-      {!data.classes.length ? <EmptyState compact icon={GraduationCap} title="مساحة لكل صف" description="أضف الصفوف الدراسية، ثم خصّص نصاب المعلمين لكل صف في الخطوة التالية." /> : !filtered.length ? <EmptyState compact title="لا توجد نتائج" description="جرّب البحث باسم صف مختلف." /> : <div className="table-scroll"><table className="data-table"><thead><tr><th>الصف الدراسي</th><th>رمز الصف</th><th>الحصص المخصصة</th><th>تغطية الأسبوع</th><th className="actions-cell">الإجراءات</th></tr></thead><tbody>{filtered.map(schoolClass => {
+
+    <Panel title={form.id ? 'تعديل بيانات الفصل' : 'إضافة فصل دراسي'} description="أضف الفصول (الشُعب) داخل كل صف دراسي، مثل «العاشر - 1»." icon={GraduationCap} id="class-form">
+      <form className="panel-form" onSubmit={submit}>
+        <div className="form-grid two-columns"><Field label="اسم الفصل"><input required maxLength={80} placeholder="مثال: العاشر - 1" value={form.name} onChange={event => setForm({ ...form, name: event.target.value })} /></Field><Field label="رمز الفصل" optional><input maxLength={20} placeholder="مثال: C01" value={form.code} onChange={event => setForm({ ...form, code: event.target.value })} /></Field></div>
+        <div className="form-grid"><Field label="الصف الدراسي" optional hint={!data.grades.length ? 'أضف صفاً دراسياً أعلاه لتتمكن من التصنيف.' : undefined}><select value={form.gradeId} onChange={event => setForm({ ...form, gradeId: event.target.value })} disabled={!data.grades.length}><option value="">بلا تصنيف</option>{data.grades.map(grade => <option key={grade.id} value={grade.id}>{grade.name}</option>)}</select></Field></div>
+        <div className="form-actions"><Button type="submit" icon={form.id ? Pencil : Plus}>{form.id ? 'حفظ التعديلات' : 'إضافة الفصل'}</Button>{form.id && <Button variant="ghost" onClick={reset}>إلغاء التعديل</Button>}</div>
+      </form>
+    </Panel>
+    <Panel title="الفصول الدراسية" description={`${data.classes.length} فصل في مدرستك`} action={data.classes.length > 0 && <div className="search-input"><Search size={16} /><input placeholder="ابحث عن فصل..." aria-label="البحث عن فصل" value={search} onChange={event => setSearch(event.target.value)} /></div>}>
+      {!data.classes.length ? <EmptyState compact icon={GraduationCap} title="مساحة لكل فصل" description="أضف الفصول الدراسية، ثم خصّص نصاب المعلمين لكل فصل في الخطوة التالية." /> : !filtered.length ? <EmptyState compact title="لا توجد نتائج" description="جرّب البحث باسم فصل مختلف." /> : <div className="table-scroll"><table className="data-table"><thead><tr><th>الفصل الدراسي</th><th>الصف الدراسي</th><th>رمز الفصل</th><th>الحصص المخصصة</th><th>تغطية الأسبوع</th><th className="actions-cell">الإجراءات</th></tr></thead><tbody>{filtered.map(schoolClass => {
         const assigned = data.requirements.filter(item => item.classId === schoolClass.id).reduce((sum, item) => sum + item.count, 0);
         const capacity = classCapacity(data, schoolClass.id);
-        return <tr key={schoolClass.id}><td><div className="person-cell"><span className="class-icon"><BookOpen size={18} /></span><strong>{schoolClass.name}</strong></div></td><td className="latin muted">{schoolClass.code}</td><td><strong className="numeric">{assigned}</strong><span className="muted"> / {capacity}</span></td><td><div className="coverage-inline"><div className="progress-track"><div style={{ width: `${Math.min(100, capacity ? assigned / capacity * 100 : 0)}%` }} className={assigned > capacity ? 'over-capacity' : ''} /></div><span>{assigned === capacity ? 'مكتمل' : assigned > capacity ? 'حصص زائدة' : 'غير مكتمل'}</span></div></td><td><div className="row-actions"><IconButton icon={Pencil} label={`تعديل ${schoolClass.name}`} onClick={() => { setForm(schoolClass); document.getElementById('class-form')?.scrollIntoView({ behavior: 'smooth' }); }} /><IconButton icon={Trash2} className="delete-button" label={`حذف ${schoolClass.name}`} onClick={() => remove(schoolClass)} /></div></td></tr>;
+        return <tr key={schoolClass.id}><td><div className="person-cell"><span className="class-icon"><BookOpen size={18} /></span><strong>{schoolClass.name}</strong></div></td><td><span className="small-text">{gradeName(schoolClass.gradeId)}</span></td><td className="latin muted">{schoolClass.code}</td><td><strong className="numeric">{assigned}</strong><span className="muted"> / {capacity}</span></td><td><div className="coverage-inline"><div className="progress-track"><div style={{ width: `${Math.min(100, capacity ? assigned / capacity * 100 : 0)}%` }} className={assigned > capacity ? 'over-capacity' : ''} /></div><span>{assigned === capacity ? 'مكتمل' : assigned > capacity ? 'حصص زائدة' : 'غير مكتمل'}</span></div></td><td><div className="row-actions"><IconButton icon={Pencil} label={`تعديل ${schoolClass.name}`} onClick={() => { setForm(schoolClass); document.getElementById('class-form')?.scrollIntoView({ behavior: 'smooth' }); }} /><IconButton icon={Trash2} className="delete-button" label={`حذف ${schoolClass.name}`} onClick={() => remove(schoolClass)} /></div></td></tr>;
       })}</tbody></table></div>}
       <NextFooter label="التالي: نصاب المعلمين" onNext={() => goTo('requirements')} />
     </Panel>

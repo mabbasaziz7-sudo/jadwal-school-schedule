@@ -79,7 +79,7 @@ export default function DashboardPage({ data, goTo, onGenerate, generating, prog
   const setupSteps = [
     { label: 'أيام الدوام', done: days.length > 0, tab: 'days' as const },
     { label: 'المعلمون', done: data.teachers.length > 0, tab: 'teachers' as const },
-    { label: 'الصفوف', done: data.classes.length > 0, tab: 'classes' as const },
+    { label: 'الفصول', done: data.classes.length > 0, tab: 'classes' as const },
     { label: 'نصاب الحصص', done: data.requirements.length > 0, tab: 'requirements' as const },
     { label: 'الجدول', done: !!schedule, tab: 'schedule' as const },
   ];
@@ -91,13 +91,13 @@ export default function DashboardPage({ data, goTo, onGenerate, generating, prog
         <div className="hero-content">
           <span className="hero-eyebrow"><CalendarDays size={14} />{data.schoolName}</span>
           <h1>لوحة تحكم المدرسة</h1>
-          <p>نظرة شاملة على جاهزية الجدول المدرسي وتوزيع الأحمال بين المعلمين والصفوف.</p>
+          <p>نظرة شاملة على جاهزية الجدول المدرسي وتوزيع الأحمال بين المعلمين والفصول.</p>
           <div className="hero-meta">
             <span><strong>{days.length}</strong> يوم دراسي</span>
             <span className="hero-sep">•</span>
             <span><strong>{data.teachers.length}</strong> معلم</span>
             <span className="hero-sep">•</span>
-            <span><strong>{data.classes.length}</strong> صف</span>
+            <span><strong>{data.classes.length}</strong> فصل</span>
             <span className="hero-sep">•</span>
             <span>العام <strong className="latin">{data.year}</strong></span>
           </div>
@@ -133,7 +133,7 @@ export default function DashboardPage({ data, goTo, onGenerate, generating, prog
       <div className="dash-stats-grid">
         {[
           { label: 'المعلمون', value: data.teachers.length, sub: `${stats.activeTeachers} بأيام دوام فعّالة`, icon: Users, color: 'blue', done: data.teachers.length > 0 },
-          { label: 'الصفوف الدراسية', value: data.classes.length, sub: `${data.classes.filter(c => classCapacity(data, c.id) > 0).length} بسعة حصص`, icon: GraduationCap, color: 'green', done: data.classes.length > 0 },
+          { label: 'الفصول الدراسية', value: data.classes.length, sub: `${data.classes.filter(c => classCapacity(data, c.id) > 0).length} بسعة حصص`, icon: GraduationCap, color: 'green', done: data.classes.length > 0 },
           { label: 'حصص موزعة', value: `${stats.placed}`, sub: `من أصل ${stats.requested} حصة مطلوبة`, icon: Table2, color: 'teal', done: stats.placed >= stats.requested && stats.requested > 0 },
           { label: 'نسبة التغطية', value: `${stats.coveragePct}%`, sub: stats.coveragePct >= 100 ? 'اكتمل توزيع الجدول' : `${Math.max(0, stats.requested - stats.placed)} حصة متبقية`, icon: ClipboardList, color: 'amber', done: stats.coveragePct >= 100 },
         ].map((card, i) => (
@@ -164,12 +164,12 @@ export default function DashboardPage({ data, goTo, onGenerate, generating, prog
         </Panel>
       </motion.div>
 
-      {/* الصفين: تغطية الصفوف + أحمال المعلمين */}
+      {/* الصفين: تغطية الفصول + أحمال المعلمين */}
       <div className="dash-two-col">
         <motion.div variants={fadeUp} initial="hidden" animate="show" custom={6}>
-          <Panel title="تغطية الصفوف" description="نسبة الحصص الموزعة من سعة كل صف الأسبوعية." icon={GraduationCap}>
+          <Panel title="تغطية الفصول" description="نسبة الحصص الموزعة من سعة كل فصل الأسبوعية." icon={GraduationCap}>
             {stats.classCoverage.length === 0 ? (
-              <p className="dash-empty">لم تُضف صفوفاً بعد. ابدأ من قسم «الصفوف الدراسية».</p>
+              <p className="dash-empty">لم تُضف فصولاً بعد. ابدأ من قسم «الفصول الدراسية».</p>
             ) : (
               <div className="coverage-rows">
                 {stats.classCoverage.map(cls => (
@@ -274,7 +274,7 @@ export default function DashboardPage({ data, goTo, onGenerate, generating, prog
         <div className="dash-export-bar">
           <div>
             <h3>تصدير وطباعة</h3>
-            <p>احصل على جداول الصفوف والمعلمين بصيغة قابلة للطباعة أو CSV.</p>
+            <p>احصل على جداول الفصول والمعلمين بصيغة قابلة للطباعة أو CSV.</p>
           </div>
           <div className="export-actions">
             <Button variant="secondary" icon={Printer} onClick={() => goTo('schedule')}>طباعة الجدول</Button>
