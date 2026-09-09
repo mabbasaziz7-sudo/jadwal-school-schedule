@@ -1,5 +1,5 @@
 import { useRef, useState, type ChangeEvent } from 'react';
-import { AlertTriangle, CheckCircle2, FileSpreadsheet, LoaderCircle, Sparkles, Upload } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, FileSpreadsheet, LoaderCircle, Sparkles, UserPlus, Upload } from 'lucide-react';
 import type { AppData } from '../lib/data';
 import { getAiApiKey } from '../lib/aiKey';
 import { extractScheduleFromFile } from '../lib/aiScheduleExtract';
@@ -19,6 +19,7 @@ export default function ImportScheduleModal({ open, onClose, data, commit, notif
   const [mode, setMode] = useState<'file' | 'ai'>('file');
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
+  const [autoCreate, setAutoCreate] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const hasAiKey = !!getAiApiKey();
 
@@ -32,7 +33,7 @@ export default function ImportScheduleModal({ open, onClose, data, commit, notif
     setBusy(true);
     try {
       const rows = await parseSpreadsheetFile(file);
-      setResult(matchImportRows(data, rows));
+      setResult(matchImportRows(data, rows, { autoCreate }));
     } catch {
       notify('تعذّر قراءة الملف. تأكد أنه بصيغة Excel أو CSV صحيحة.', 'error');
     } finally {
@@ -47,7 +48,7 @@ export default function ImportScheduleModal({ open, onClose, data, commit, notif
     setBusy(true);
     try {
       const rows = await extractScheduleFromFile(getAiApiKey(), file, data);
-      setResult(matchImportRows(data, rows));
+      setResult(matchImportRows(data, rows, { autoCreate }));
     } catch (error) {
       notify(error instanceof Error ? error.message : 'تعذّر استخراج الجدول من الملف.', 'error');
     } finally {
@@ -57,8 +58,19 @@ export default function ImportScheduleModal({ open, onClose, data, commit, notif
 
   const applyImport = () => {
     if (!result || !result.lessons.length) return;
-    commit({ schedule: mergeImportedLessons(data, result.lessons) });
-    notify(`تم استيراد ${result.lessons.length} حصة إلى الجدول بنجاح.`, result.errors.length ? 'info' : 'success');
+    const augmentedData = { ...data, teachers: result.teachers, classes: result.classes };
+    commit({
+      teachers: result.teachers,
+      classes: result.classes,
+      schedule: mergeImportedLessons(augmentedData, result.lessons),
+    });
+    const createdCount = result.createdTeacherNames.length + result.createdClassNames.length;
+    notify(
+      createdCount
+        ? `تم استيراد ${result.lessons.length} حصة، وإضافة ${result.createdTeacherNames.length} معلم و${result.createdClassNames.length} فصل جديد.`
+        : `تم استيراد ${result.lessons.length} حصة إلى الجدول بنجاح.`,
+      result.errors.length ? 'info' : 'success'
+    );
     handleClose();
     onClose();
   };
@@ -72,6 +84,11 @@ export default function ImportScheduleModal({ open, onClose, data, commit, notif
               <button className={mode === 'file' ? 'selected' : ''} onClick={() => setMode('file')}><FileSpreadsheet size={16} />ملف Excel / CSV</button>
               <button className={mode === 'ai' ? 'selected' : ''} onClick={() => setMode('ai')}><Sparkles size={16} />صورة أو PDF بالذكاء الاصطناعي</button>
             </div>
+
+            <label className="import-autocreate-toggle">
+              <input type="checkbox" checked={autoCreate} onChange={event => setAutoCreate(event.target.checked)} />
+              <span><UserPlus size={16} /> إنشاء المعلمين والفصول غير الموجودين تلقائياً من الملف</span>
+            </label>
 
             {mode === 'file' ? (
               <div className="import-panel">
@@ -111,6 +128,13 @@ export default function ImportScheduleModal({ open, onClose, data, commit, notif
               <span className="import-summary-ok"><CheckCircle2 size={16} />{result.matchedCount} حصة جاهزة للاستيراد</span>
               {result.errors.length > 0 && <span className="import-summary-warn"><AlertTriangle size={16} />{result.errors.length} صف تم تجاهله</span>}
             </div>
+            {(result.createdTeacherNames.length > 0 || result.createdClassNames.length > 0) && (
+              <InlineNotice kind="info">
+                <UserPlus size={16} />{' '}
+                {result.createdTeacherNames.length > 0 && <>سيتم إنشاء {result.createdTeacherNames.length} معلم جديد: {result.createdTeacherNames.join('، ')}. </>}
+                {result.createdClassNames.length > 0 && <>سيتم إنشاء {result.createdClassNames.length} فصل جديد: {result.createdClassNames.join('، ')}.</>}
+              </InlineNotice>
+            )}
             {result.errors.length > 0 && (
               <ul className="import-error-list">
                 {result.errors.map((error, index) => <li key={index}>{error}</li>)}

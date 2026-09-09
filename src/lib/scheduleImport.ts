@@ -1,6 +1,6 @@
 import * as XLSX from 'xlsx';
 import { auditSchedule, startBlankSchedule } from './scheduler';
-import { uid, type AppData, type Lesson, type Schedule } from './data';
+import { uid, type AppData, type Lesson, type Schedule, type SchoolClass, type Teacher } from './data';
 
 /** One row read from an uploaded spreadsheet or extracted by AI from an image/PDF, before matching against real data. */
 export interface RawImportRow {
@@ -15,6 +15,14 @@ export interface ImportResult {
   lessons: Lesson[];
   matchedCount: number;
   errors: string[];
+  /** Full teacher list after auto-creating any names from the file that didn't already exist — pass this to commit(). */
+  teachers: Teacher[];
+  /** Full class list after auto-creating any names from the file that didn't already exist — pass this to commit(). */
+  classes: SchoolClass[];
+  /** Names of teachers newly created from this import, for the review screen. */
+  createdTeacherNames: string[];
+  /** Names of classes newly created from this import, for the review screen. */
+  createdClassNames: string[];
 }
 
 const HEADER_ALIASES: Record<keyof RawImportRow, string[]> = {
@@ -67,21 +75,61 @@ export function downloadImportTemplate(data: AppData) {
   XLSX.writeFile(workbook, 'قالب-استيراد-الجدول.xlsx');
 }
 
-/** Matches raw rows against real teachers/classes/days and builds importable lessons, reporting anything it couldn't resolve. */
-export function matchImportRows(data: AppData, rows: RawImportRow[]): ImportResult {
+export interface MatchImportOptions {
+  /** When true (default), teacher/class names in the file that don't match an existing record are created automatically. */
+  autoCreate?: boolean;
+}
+
+/**
+ * Matches raw rows against real teachers/classes/days and builds importable lessons, reporting anything it couldn't
+ * resolve. Unless `autoCreate` is disabled, a teacher or class name that doesn't already exist is created on the fly
+ * (with sensible defaults) so the whole file can be imported in one pass — the caller must commit the returned
+ * `teachers`/`classes` lists alongside the schedule for these new records to actually be saved.
+ */
+export function matchImportRows(data: AppData, rows: RawImportRow[], options: MatchImportOptions = {}): ImportResult {
+  const autoCreate = options.autoCreate !== false;
   const errors: string[] = [];
   const lessons: Lesson[] = [];
   const seenSlots = new Set<string>();
-  const findTeacher = (name: string) => data.teachers.find(t => t.name.trim().toLowerCase() === name.trim().toLowerCase() || t.code.trim().toLowerCase() === name.trim().toLowerCase());
-  const findClass = (name: string) => data.classes.find(c => c.name.trim().toLowerCase() === name.trim().toLowerCase() || c.code.trim().toLowerCase() === name.trim().toLowerCase());
+  const createdTeacherNames: string[] = [];
+  const createdClassNames: string[] = [];
+  let teachers = data.teachers;
+  let classes = data.classes;
+
+  const norm = (value: string) => value.trim().toLowerCase();
+  const findTeacher = (name: string) => teachers.find(t => norm(t.name) === norm(name) || norm(t.code) === norm(name));
+  const findClass = (name: string) => classes.find(c => norm(c.name) === norm(name) || norm(c.code) === norm(name));
   const findDay = (name: string) => data.days.find(d => d.name.trim() === name.trim() || d.short.trim() === name.trim());
+
+  const ensureTeacher = (rawName: string) => {
+    const name = rawName.trim();
+    if (!name) return undefined;
+    const existing = findTeacher(name);
+    if (existing || !autoCreate) return existing;
+    const id = uid();
+    const teacher: Teacher = { id, name, code: `T-${id.slice(0, 5).toUpperCase()}`, minDaily: 0, maxDaily: 7, maxConsecutive: 3, days: data.days.filter(d => d.enabled).map(d => d.id) };
+    teachers = [...teachers, teacher];
+    createdTeacherNames.push(name);
+    return teacher;
+  };
+  const ensureClass = (rawName: string) => {
+    const name = rawName.trim();
+    if (!name) return undefined;
+    const existing = findClass(name);
+    if (existing || !autoCreate) return existing;
+    const id = uid();
+    const schoolClass: SchoolClass = { id, name, code: `C-${id.slice(0, 5).toUpperCase()}`, gradeId: '' };
+    classes = [...classes, schoolClass];
+    createdClassNames.push(name);
+    return schoolClass;
+  };
 
   rows.forEach((row, index) => {
     const rowLabel = `الصف ${index + 2} في الملف`; // +2: header row + 1-indexing
     if (!row.teacher && !row.className && !row.day && !row.period) return; // skip fully blank rows
-    const teacher = findTeacher(row.teacher);
+    const teacher = ensureTeacher(row.teacher);
     if (!teacher) return void errors.push(`${rowLabel}: لم يتم العثور على معلم باسم "${row.teacher}".`);
-    const schoolClass = findClass(row.className);
+    const schoolClass = ensureClass(row.className);
     if (!schoolClass) return void errors.push(`${rowLabel}: لم يتم العثور على فصل باسم "${row.className}".`);
     const day = findDay(row.day);
     if (!day || !day.enabled) return void errors.push(`${rowLabel}: يوم "${row.day}" غير معروف أو غير مفعّل في أيام الدوام.`);
@@ -93,7 +141,7 @@ export function matchImportRows(data: AppData, rows: RawImportRow[]): ImportResu
     lessons.push({ id: uid(), teacherId: teacher.id, classId: schoolClass.id, dayId: day.id, period, subject: (row.subject || '').trim(), fixed: true, manual: true });
   });
 
-  return { lessons, matchedCount: lessons.length, errors };
+  return { lessons, matchedCount: lessons.length, errors, teachers, classes, createdTeacherNames, createdClassNames };
 }
 
 /** Merges imported lessons into the current (or a new) schedule, overwriting any existing lesson in the same slot. */
