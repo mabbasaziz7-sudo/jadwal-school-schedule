@@ -311,6 +311,30 @@ export async function generateSchedule(data: AppData, onProgress: (value: number
   };
 }
 
+/** An empty schedule an admin can fill in entirely by hand, without ever running the generator. */
+export function startBlankSchedule(): Schedule {
+  return { lessons: [], warnings: [], generatedAt: new Date().toISOString(), requested: 0, placed: 0 };
+}
+
+/**
+ * Directly sets (or replaces) the lesson in one schedule cell. Used by the manual "type into any cell"
+ * editor — bypasses requirements/generation entirely. Conflicts (double-booked teacher, etc.) are still
+ * surfaced through the normal warnings list rather than blocked, since manual entry is meant to override.
+ */
+export function upsertManualLesson(data: AppData, input: { id?: string; teacherId: string; classId: string; dayId: string; period: number; subject: string }): Schedule {
+  const base = data.schedule ?? startBlankSchedule();
+  const withoutSlot = base.lessons.filter(lesson => lesson.id !== input.id && !(lesson.classId === input.classId && lesson.dayId === input.dayId && lesson.period === input.period));
+  const lesson: Lesson = { id: input.id ?? uid(), teacherId: input.teacherId, classId: input.classId, dayId: input.dayId, period: input.period, subject: input.subject.trim(), fixed: true, manual: true };
+  const lessons = [...withoutSlot, lesson];
+  return { ...base, lessons, warnings: auditSchedule(data, lessons), placed: lessons.length };
+}
+
+export function removeManualLesson(data: AppData, lessonId: string): Schedule {
+  if (!data.schedule) throw new Error('لا يوجد جدول لتعديله.');
+  const lessons = data.schedule.lessons.filter(lesson => lesson.id !== lessonId);
+  return { ...data.schedule, lessons, warnings: auditSchedule(data, lessons), placed: lessons.length };
+}
+
 export function moveLesson(data: AppData, lessonId: string, dayId: string, period: number): Schedule {
   if (!data.schedule) throw new Error('لا يوجد جدول لتعديله.');
   const source = data.schedule.lessons.find(lesson => lesson.id === lessonId);

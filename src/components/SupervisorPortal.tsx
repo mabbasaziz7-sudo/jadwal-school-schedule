@@ -16,6 +16,7 @@ import type { AppNotification } from '../lib/notifications';
 import { Button, Modal } from './ui';
 import NotificationCenter from './NotificationCenter';
 import InstallAppButton from './InstallAppButton';
+import { OfficialPrintHeader, OfficialPrintFooter } from './OfficialPrintHeader';
 
 interface SupervisorPortalProps {
   data: AppData;
@@ -204,6 +205,7 @@ export default function SupervisorPortal({
         </div>
 
         <section className="teacher-schedule-panel">
+          <OfficialPrintHeader data={data} subtitle={`جدول الصف: ${selectedClass?.name ?? ''} (قسم ${section.name})`} />
           <div className="panel-header-row">
             <div>
               <h2>جدول الصف الأسبوعي</h2>
@@ -273,6 +275,7 @@ export default function SupervisorPortal({
             <span><Info size={14} />بصلاحية العرض فقط، لا يمكن تعديل الحصص من هذه البوابة.</span>
             <span className="print-hint"><Printer size={13} />مهيأ للطباعة مباشرة بصيغة A4 بالعرض</span>
           </div>
+          <OfficialPrintFooter role="مشرف الصف" />
         </section>
 
         <section className="teacher-details-grid">

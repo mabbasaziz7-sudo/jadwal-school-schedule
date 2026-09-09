@@ -85,6 +85,8 @@ export interface Lesson {
   subject: string;
   requirementId?: string;
   fixed: boolean;
+  /** Typed directly into a schedule cell by the admin, bypassing generation. Always paired with fixed: true. */
+  manual?: boolean;
 }
 
 export interface Schedule {
@@ -113,6 +115,12 @@ export interface AppData {
   periodTimes: string[];
   sections: Section[];
   supervisors: Supervisor[];
+  /** Kuwait MOE-style official fields, used for the printable letterhead. All optional/free-form for schools outside Kuwait. */
+  educationZone: string;
+  stage: string;
+  semester: string;
+  schoolCode: string;
+  showOfficialHeader: boolean;
 }
 
 export type UserRole = 'admin' | 'teacher' | 'supervisor';
@@ -124,6 +132,11 @@ export interface UserSession {
 
 export const SESSION_KEY = 'jadwal-session-v1';
 export const STORAGE_KEY = 'jadwal-school-v1';
+
+/** Kuwait's six educational zones (المناطق التعليمية), used on the official print header. */
+export const KUWAIT_EDUCATION_ZONES = ['العاصمة', 'حولي', 'الفروانية', 'مبارك الكبير', 'الأحمدي', 'الجهراء'] as const;
+export const SCHOOL_STAGES = ['رياض أطفال', 'ابتدائي', 'متوسط', 'ثانوي'] as const;
+export const SEMESTERS = ['الفصل الدراسي الأول', 'الفصل الدراسي الثاني'] as const;
 
 export const defaultDays: SchoolDay[] = [
   { id: 'sun', name: 'الأحد', short: 'أحد', enabled: true, periods: 7 },
@@ -166,6 +179,11 @@ export function createDefaultData(): AppData {
     periodTimes: defaultPeriodTimes(),
     sections: [],
     supervisors: [],
+    educationZone: '',
+    stage: SCHOOL_STAGES[1],
+    semester: SEMESTERS[0],
+    schoolCode: '',
+    showOfficialHeader: true,
   };
 }
 
@@ -254,6 +272,8 @@ export function parseBackup(raw: string): AppData {
         isText(item.id) && item.id && isText(item.name) && item.name.toString().trim() && sectionIds.has(item.sectionId as string))
       .map(item => ({ id: item.id as string, name: item.name as string, sectionId: item.sectionId as string }))
     : [];
+  const rawValue = value as Record<string, unknown>;
+  const optionalText = (field: string, max = 60) => isText(rawValue[field], max) ? (rawValue[field] as string) : '';
   // Rebuild derived schedules rather than trusting imported, potentially stale assignments.
   return {
     ...createDefaultData(),
@@ -268,10 +288,15 @@ export function parseBackup(raw: string): AppData {
     limits: data.limits,
     bookings: data.bookings,
     schedule: null,
-    adminPassword: typeof (value as Record<string, unknown>).adminPassword === 'string' && (value as Record<string, unknown>).adminPassword ? String((value as Record<string, unknown>).adminPassword) : 'admin',
+    adminPassword: typeof rawValue.adminPassword === 'string' && rawValue.adminPassword ? String(rawValue.adminPassword) : 'admin',
     periodTimes,
     sections,
     supervisors,
+    educationZone: optionalText('educationZone'),
+    stage: optionalText('stage') || SCHOOL_STAGES[1],
+    semester: optionalText('semester') || SEMESTERS[0],
+    schoolCode: optionalText('schoolCode', 30),
+    showOfficialHeader: typeof rawValue.showOfficialHeader === 'boolean' ? rawValue.showOfficialHeader : true,
   };
 }
 

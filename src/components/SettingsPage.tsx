@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Boxes, Building2, Eye, GraduationCap, Layers, Pencil, Plus, ShieldCheck, Trash2 } from 'lucide-react';
-import { uid, type Section, type Supervisor } from '../lib/data';
-import { Button, CheckboxList, EmptyState, Field, IconButton, Panel, type WorkspaceProps } from './ui';
+import { Boxes, Building2, Eye, GraduationCap, Landmark, Layers, Pencil, Plus, ShieldCheck, Trash2 } from 'lucide-react';
+import { KUWAIT_EDUCATION_ZONES, SCHOOL_STAGES, SEMESTERS, uid, type Section, type Supervisor } from '../lib/data';
+import { Button, CheckboxList, EmptyState, Field, IconButton, Panel, Toggle, type WorkspaceProps } from './ui';
 
 export default function SettingsPage({ data, commit, notify, confirm }: WorkspaceProps) {
   // --- School settings ------------------------------------------------
@@ -21,6 +21,20 @@ export default function SettingsPage({ data, commit, notify, confirm }: Workspac
     });
     notify('تم حفظ إعدادات المدرسة وكلمة المرور.');
   };
+
+  // --- Kuwait MOE fields (used on the official printed letterhead) --------
+  const [official, setOfficial] = useState({
+    educationZone: data.educationZone,
+    stage: data.stage,
+    semester: data.semester,
+    schoolCode: data.schoolCode,
+  });
+  const saveOfficial = (event: FormEvent) => {
+    event.preventDefault();
+    commit({ ...official, schedule: data.schedule });
+    notify('تم حفظ بيانات وزارة التربية الرسمية.');
+  };
+  const toggleOfficialHeader = () => commit({ showOfficialHeader: !data.showOfficialHeader, schedule: data.schedule });
 
   // --- Sections ---------------------------------------------------------
   const blankSection = (): Section => ({ id: '', name: '', classIds: [] });
@@ -98,6 +112,42 @@ export default function SettingsPage({ data, commit, notify, confirm }: Workspac
         </div>
         <div className="form-actions"><Button type="submit">حفظ إعدادات المدرسة</Button></div>
       </form>
+    </Panel>
+
+    <Panel title="بيانات وزارة التربية الرسمية" description="تظهر هذه البيانات في ترويسة الجدول عند الطباعة، بما يطابق النموذج الرسمي لوزارة التربية الكويتية." icon={Landmark}>
+      <form onSubmit={saveOfficial} className="panel-form">
+        <div className="form-grid two-columns">
+          <Field label="المنطقة التعليمية">
+            <select value={official.educationZone} onChange={event => setOfficial({ ...official, educationZone: event.target.value })}>
+              <option value="">بدون تحديد</option>
+              {KUWAIT_EDUCATION_ZONES.map(zone => <option key={zone} value={zone}>{zone}</option>)}
+            </select>
+          </Field>
+          <Field label="المرحلة الدراسية">
+            <select value={official.stage} onChange={event => setOfficial({ ...official, stage: event.target.value })}>
+              {SCHOOL_STAGES.map(stage => <option key={stage} value={stage}>{stage}</option>)}
+            </select>
+          </Field>
+        </div>
+        <div className="form-grid two-columns">
+          <Field label="الفصل الدراسي">
+            <select value={official.semester} onChange={event => setOfficial({ ...official, semester: event.target.value })}>
+              {SEMESTERS.map(semester => <option key={semester} value={semester}>{semester}</option>)}
+            </select>
+          </Field>
+          <Field label="الرقم الوزاري للمدرسة" optional>
+            <input maxLength={30} value={official.schoolCode} onChange={event => setOfficial({ ...official, schoolCode: event.target.value })} placeholder="مثال: 12345" />
+          </Field>
+        </div>
+        <div className="form-actions"><Button type="submit">حفظ البيانات الرسمية</Button></div>
+      </form>
+      <div className="official-header-toggle-row">
+        <div>
+          <strong>إظهار الترويسة الرسمية عند الطباعة</strong>
+          <p>تُضاف تلقائياً أعلى كل جدول مطبوع (للصف، المعلم، أو المشرف). عطّلها إن كانت مدرستك خارج نظام وزارة التربية الكويتية.</p>
+        </div>
+        <Toggle checked={data.showOfficialHeader} onChange={toggleOfficialHeader} label="إظهار الترويسة الرسمية عند الطباعة" />
+      </div>
     </Panel>
 
     <Panel title={sectionForm.id ? 'تعديل القسم' : 'إضافة قسم دراسي'} description="اجمع مجموعة من الصفوف في قسم واحد لإسناده لمشرف يطّلع عليه فقط." icon={Layers} id="section-form">

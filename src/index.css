@@ -209,6 +209,9 @@ fieldset:disabled { opacity: 0.6; }
 .save-error, .save-error svg { color: #ba7663 !important; }
 
 .panel-form { padding: 25px; }
+.official-header-toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 18px 25px; border-top: 1px solid #eaf0e4; }
+.official-header-toggle-row strong { font-size: 12.5px; color: #3c5037; }
+.official-header-toggle-row p { margin: 4px 0 0; font-size: 11px; color: #8e9b84; line-height: 1.8; max-width: 480px; }
 .form-grid { display: grid; gap: 20px; margin-bottom: 20px; }
 .two-columns { grid-template-columns: 1fr 1fr; }
 .three-columns { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -356,6 +359,12 @@ select.compact-select { width: auto; max-width: 230px; font-size: 11px; min-heig
 .lesson-lock { position: absolute; bottom: 6px; left: 6px; opacity: 0.7; }
 .empty-cell { display: block; font-size: 9.5px; color: #b9cbb0; }
 .unavailable-cell { background: repeating-linear-gradient(-45deg, #fcfdf9, #fcfdf9 5px, #f5f8ef 5px, #f5f8ef 6px); }
+.empty-cell-btn { width: 100%; height: 100%; min-height: 73px; border: 1px dashed transparent; border-radius: 5px; background: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: #b9cbb0; }
+.empty-cell-btn:not(:disabled):hover { border-color: #bcd8a4; background: #f8fbf3; color: #6f9155; }
+.empty-cell-btn:not(:disabled):hover .empty-cell { color: #6f9155; }
+.empty-cell-plus { opacity: 0; transition: opacity 140ms; }
+.empty-cell-btn:not(:disabled):hover .empty-cell-plus { opacity: 1; }
+.empty-cell-disabled { cursor: default; }
 .timetable-footer { display: flex; justify-content: space-between; padding: 15px 22px; gap: 15px; color: #9eb88f; font-size: 9.5px; }
 .timetable-footer > span { display: flex; align-items: center; gap: 6px; }
 .lesson-detail { display: flex; align-items: center; gap: 11px; padding-bottom: 19px; margin-bottom: 17px; border-bottom: 1px solid #e9f2e1; }
@@ -1207,7 +1216,30 @@ select.compact-select { width: auto; max-width: 230px; font-size: 11px; min-heig
 /* ========================================================
    PRINT STYLES FOR TEACHER PORTAL & ADMIN SCHEDULE
    ======================================================== */
+/* Kuwait MOE-style official letterhead: invisible on screen, only rendered when printing. */
+.official-print-header { display: none; }
+.official-print-footer { display: none; }
+
+/* Bulk print: several timetables rendered off-screen, then sent to the printer as one job. */
+.bulk-print-only { display: none; }
+.bulk-print-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 18px; }
 @media print {
+  .bulk-print-only { display: block; }
+  .bulk-print-page { break-after: page; padding: 6mm 0; }
+  .bulk-print-page:last-child { break-after: auto; }
+}
+
+@media print {
+  .official-print-header { display: block; text-align: center; margin-bottom: 5mm; }
+  .official-header-row { display: flex; justify-content: center; gap: 14mm; font-size: 10pt; color: #1c2e22; margin-bottom: 2mm; }
+  .official-header-top { font-weight: 700; }
+  .official-header-school { font-size: 9.5pt; color: #33473a; }
+  .official-header-title { margin: 3mm 0 0; font-size: 13pt; text-decoration: underline; }
+  .official-print-footer { display: flex; justify-content: space-between; gap: 10mm; margin-top: 8mm; padding-top: 4mm; }
+  .sign-block, .stamp-block { flex: 1; text-align: center; font-size: 9pt; color: #33473a; }
+  .sign-line { margin-top: 9mm; border-top: 1px solid #333; width: 80%; margin-inline: auto; }
+  .stamp-box { margin: 3mm auto 0; width: 26mm; height: 18mm; border: 1px dashed #888; border-radius: 6px; }
+
   @page { size: A4 landscape; margin: 10mm; }
   :root, body { background: white !important; }
   body { min-width: 0; }

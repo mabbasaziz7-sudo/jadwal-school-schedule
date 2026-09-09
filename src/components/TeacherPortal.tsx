@@ -24,6 +24,7 @@ import { useClassReminders } from '../lib/reminders';
 import { Button, Modal } from './ui';
 import NotificationCenter from './NotificationCenter';
 import InstallAppButton from './InstallAppButton';
+import { OfficialPrintHeader, OfficialPrintFooter } from './OfficialPrintHeader';
 
 interface TeacherPortalProps {
   data: AppData;
@@ -352,6 +353,7 @@ export default function TeacherPortal({
 
         {/* Main Schedule Table */}
         <section className="teacher-schedule-panel">
+          <OfficialPrintHeader data={data} subtitle={`جدول المعلم: ${teacher.name}`} />
           <div className="panel-header-row">
             <div>
               <h2>جدول الحصص الأسبوعي</h2>
@@ -494,6 +496,7 @@ export default function TeacherPortal({
               مهيأ للطباعة مباشرة بصيغة A4 بالعرض
             </span>
           </div>
+          <OfficialPrintFooter role="المعلم" />
         </section>
 
         {/* Teacher Constraints & Notes */}
